@@ -1,4 +1,4 @@
-# Dataclasses JSON
+# PyDeclares
 
 This library provides a simple API for encoding and decoding declared classes to and from JSON, XML, FORM-DATA or QueryString.
 
