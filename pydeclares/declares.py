@@ -324,15 +324,15 @@ class GenericList(UserList):
 
 	__type__ = None
 
-	def __init__(self, initlist: List = None, tag: str = None):
+	def __init__(self, initlist: List = [], tag: str = None):
 		if self.__type__ is None:
 			raise TypeError(
 			    f"Type {self.__class__.__name__} cannot be intialize directly; please use new_list_type instead")
 
-		super().__init__(initlist)
+		super().__init__((self.__type__.from_dict(i) for i in initlist))
 		# type checked
 		for item in self.data:
-			if type(item) is not self.__type__:
+			if not isinstance_safe(item, self.__type__):
 				raise TypeError(f"Type of instance {str(item)} is {type(item)}, but not {self.__type__}.")
 		self.tag = tag
 
@@ -347,7 +347,7 @@ class GenericList(UserList):
 	              **kw) -> 'GenericList':
 		kvs = json.loads(
 		    s, encoding=encoding, parse_float=parse_float, parse_int=parse_int, parse_constant=parse_constant, **kw)
-		return cls(kvs)
+		return cls((cls.__type__.from_dict(i) for i in kvs))
 
 	def to_json(self,
 	            skipkeys: bool = False,

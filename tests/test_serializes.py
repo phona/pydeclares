@@ -3,46 +3,124 @@ import unittest
 from pydeclares import var, pascalcase_var, Declared, GenericList
 
 
-class FormSerializeDataTestCase(unittest.TestCase):
+class JSONSerializeTestCase(unittest.TestCase):
+    def test_struct_simple_use(self):
+        class Person(Declared):
+            name = var(str)
+            age = var(int)
 
-	def test_simple_use(self):
-		form_data = "crcat=test&crsource=test&crkw=buy-a-lot&crint=1&crfloat=1.2"
+        data = "{\"name\": \"Tom\", \"age\": 18}"
+        person = Person.from_json(data)
+        self.assertEqual(person.to_json(), data)
 
-		class Example(Declared):
-			crcat = var(str)
-			crsource = var(str)
-			crkw = var(str)
-			crint = var(int)
-			crfloat = var(float)
+    def test_list_simple_use(self):
+        class Person(Declared):
+            name = var(str)
+            age = var(int)
 
-		example = Example.from_form_data(form_data)
-		self.assertEqual(example.crint, 1)
-		self.assertEqual(example.crfloat, 1.2)
-		self.assertEqual(example.to_form_data(), form_data)
+        Persons = GenericList(Person)
+        data = "[{\"name\": \"Tom\", \"age\": 18}, {\"name\": \"Jack\", \"age\": 18}, {\"name\": \"Jerry\", \"age\": 18}]"
+        persons = Persons.from_json(data)
+        self.assertEqual(persons.to_json(), data)
+
+    def test_struct_inner_contain(self):
+        class Home(Declared):
+            location = var(str)
+
+        class Person(Declared):
+            name = var(str)
+            age = var(int)
+            home = var(Home)
+
+        data = "{\"name\": \"Tom\", \"age\": 18, \"home\": {\"location\": \"England\"}}"
+        person = Person.from_json(data)
+        self.assertEqual(person.to_json(), data)
+
+    def test_list_inner_contain(self):
+        class Home(Declared):
+            location = var(str)
+
+        class Person(Declared):
+            name = var(str)
+            age = var(int)
+            home = var(GenericList(Home))
+
+        data = "{\"name\": \"Tom\", \"age\": 18, \"home\": [{\"location\": \"England\"}, {\"location\": \"China\"}, {\"location\": \"America\"}]}"
+        person = Person.from_json(data)
+        self.assertEqual(person.to_json(), data)
+
+    def test_struct_complex_inner_contain(self):
+        class Furniture(Declared):
+            name = var(str)
+
+        class Home(Declared):
+            location = var(str)
+            furniture = var(Furniture)
+
+        class Person(Declared):
+            name = var(str)
+            age = var(int)
+            home = var(Home)
+
+        data = "{\"name\": \"Tom\", \"age\": 18, \"home\": {\"location\": \"England\", \"furniture\": {\"name\": \"desk\"}}}"
+        person = Person.from_json(data)
+        self.assertEqual(person.to_json(), data)
+
+    def test_list_complex_inner_contain(self):
+        class Furniture(Declared):
+            name = var(str)
+
+        class Home(Declared):
+            location = var(str)
+            furniture = var(Furniture)
+
+        class Person(Declared):
+            name = var(str)
+            age = var(int)
+            home = var(GenericList(Home))
+
+        data = "{\"name\": \"Tom\", \"age\": 18, \"home\": [{\"location\": \"England\", \"furniture\": {\"name\": \"desk\"}}]}"
+        person = Person.from_json(data)
+        self.assertEqual(person.to_json(), data)
+
+
+class FormDataSerializeTestCase(unittest.TestCase):
+    def test_simple_use(self):
+        form_data = "crcat=test&crsource=test&crkw=buy-a-lot&crint=1&crfloat=1.2"
+
+        class Example(Declared):
+            crcat = var(str)
+            crsource = var(str)
+            crkw = var(str)
+            crint = var(int)
+            crfloat = var(float)
+
+        example = Example.from_form_data(form_data)
+        self.assertEqual(example.crint, 1)
+        self.assertEqual(example.crfloat, 1.2)
+        self.assertEqual(example.to_form_data(), form_data)
 
 
 class QueryStringSerializeTestCase(unittest.TestCase):
+    def test_simple_use(self):
+        query_string = "crcat=test&crsource=test&crkw=buy-a-lot&crint=1&crfloat=1.2"
 
-	def test_simple_use(self):
-		query_string = "crcat=test&crsource=test&crkw=buy-a-lot&crint=1&crfloat=1.2"
+        class Example(Declared):
+            crcat = var(str)
+            crsource = var(str)
+            crkw = var(str)
+            crint = var(int)
+            crfloat = var(float)
 
-		class Example(Declared):
-			crcat = var(str)
-			crsource = var(str)
-			crkw = var(str)
-			crint = var(int)
-			crfloat = var(float)
-
-		example = Example.from_query_string(query_string)
-		self.assertEqual(example.crint, 1)
-		self.assertEqual(example.crfloat, 1.2)
-		self.assertEqual(example.to_query_string(), query_string)
+        example = Example.from_query_string(query_string)
+        self.assertEqual(example.crint, 1)
+        self.assertEqual(example.crfloat, 1.2)
+        self.assertEqual(example.to_query_string(), query_string)
 
 
 class XmlSerializeTestCase(unittest.TestCase):
-
-	def test_simple_use(self):
-		xml_string = """
+    def test_simple_use(self):
+        xml_string = """
         <?xml version="1.0" encoding="utf-8"?>
         <data>
             <country name="Liechtenstein">
@@ -66,30 +144,30 @@ class XmlSerializeTestCase(unittest.TestCase):
         </data>
         """.strip()
 
-		class Neighbor(Declared):
-			name = var(str, as_xml_attr=True)
-			direction = var(str, as_xml_attr=True)
+        class Neighbor(Declared):
+            name = var(str, as_xml_attr=True)
+            direction = var(str, as_xml_attr=True)
 
-		class Country(Declared):
-			rank = var(str)
-			year = var(int)
-			gdppc = var(int)
-			name = var(str, as_xml_attr=True)
-			neighbor = var(Neighbor)
+        class Country(Declared):
+            rank = var(str)
+            year = var(int)
+            gdppc = var(int)
+            name = var(str, as_xml_attr=True)
+            neighbor = var(Neighbor)
 
-		Data = GenericList(Country)
-		data = Data.from_xml_string(xml_string)
-		self.assertEqual(
-		    data.to_xml_bytes(skip_none_field=True).decode(),
-		    '<data><country name="Liechtenstein"><rank>1</rank><year>2008</year><gdppc>141100</gdppc><neighbor direction="E" name="Austria" /></country><country name="Singapore"><rank>4</rank><year>2011</year><gdppc>59900</gdppc><neighbor direction="N" name="Malaysia" /></country><country name="Panama"><rank>68</rank><year>2011</year><gdppc>13600</gdppc><neighbor direction="W" name="Costa Rica" /></country></data>'
-		)
-		self.assertEqual(
-		    data.to_json(),
-		    '[{"rank": "1", "year": 2008, "gdppc": 141100, "name": "Liechtenstein", "neighbor": {"name": "Austria", "direction": "E"}}, {"rank": "4", "year": 2011, "gdppc": 59900, "name": "Singapore", "neighbor": {"name": "Malaysia", "direction": "N"}}, {"rank": "68", "year": 2011, "gdppc": 13600, "name": "Panama", "neighbor": {"name": "Costa Rica", "direction": "W"}}]'
-		)
+        Data = GenericList(Country)
+        data = Data.from_xml_string(xml_string)
+        self.assertEqual(
+            data.to_xml_bytes(skip_none_field=True).decode(),
+            '<data><country name="Liechtenstein"><rank>1</rank><year>2008</year><gdppc>141100</gdppc><neighbor direction="E" name="Austria" /></country><country name="Singapore"><rank>4</rank><year>2011</year><gdppc>59900</gdppc><neighbor direction="N" name="Malaysia" /></country><country name="Panama"><rank>68</rank><year>2011</year><gdppc>13600</gdppc><neighbor direction="W" name="Costa Rica" /></country></data>'
+        )
+        self.assertEqual(
+            data.to_json(),
+            '[{"rank": "1", "year": 2008, "gdppc": 141100, "name": "Liechtenstein", "neighbor": {"name": "Austria", "direction": "E"}}, {"rank": "4", "year": 2011, "gdppc": 59900, "name": "Singapore", "neighbor": {"name": "Malaysia", "direction": "N"}}, {"rank": "68", "year": 2011, "gdppc": 13600, "name": "Panama", "neighbor": {"name": "Costa Rica", "direction": "W"}}]'
+        )
 
-	def test_other_simple_use(self):
-		xml_string = """
+    def test_other_simple_use(self):
+        xml_string = """
         <?xml version="1.0" encoding="utf-8"?>
         <resources>
             <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
@@ -114,28 +192,28 @@ class XmlSerializeTestCase(unittest.TestCase):
         </resources>
         """.strip()
 
-		class Item(Declared):
-			name = var(str, as_xml_attr=True)
-			text = var(str, as_xml_text=True)
+        class Item(Declared):
+            name = var(str, as_xml_attr=True)
+            text = var(str, as_xml_text=True)
 
-		class Style(Declared):
-			name = var(str, as_xml_attr=True)
-			parent = var(str, as_xml_attr=True, default=None)
-			items = var(GenericList(Item), field_name="item")
+        class Style(Declared):
+            name = var(str, as_xml_attr=True)
+            parent = var(str, as_xml_attr=True, default=None)
+            items = var(GenericList(Item), field_name="item")
 
-		Resource = GenericList(Style)
-		data = Resource.from_xml_string(xml_string)
-		self.assertEqual(
-		    data.to_xml_bytes(skip_none_field=True).decode(),
-		    '<resources><style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar"><item name="colorPrimary">@color/colorPrimary</item><item name="colorPrimaryDark">@color/colorPrimaryDark</item><item name="colorAccent">@color/colorAccent</item></style><style name="AppTheme.NoActionBar"><item name="windowActionBar">false</item><item name="windowNoTitle">true</item></style><style name="AppTheme.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" /><style name="AppTheme.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" /><style name="ratingBarStyle" parent="@android:style/Widget.RatingBar"><item name="android:progressDrawable">@drawable/ratingbar_drawable</item><item name="android:minHeight">48dip</item><item name="android:maxHeight">48dip</item></style></resources>'
-		)
-		self.assertEqual(
-		    data.to_json(),
-		    '[{"name": "AppTheme", "parent": "Theme.AppCompat.Light.DarkActionBar", "item": [{"name": "colorPrimary", "text": "@color/colorPrimary"}, {"name": "colorPrimaryDark", "text": "@color/colorPrimaryDark"}, {"name": "colorAccent", "text": "@color/colorAccent"}]}, {"name": "AppTheme.NoActionBar", "parent": null, "item": [{"name": "windowActionBar", "text": "false"}, {"name": "windowNoTitle", "text": "true"}]}, {"name": "AppTheme.AppBarOverlay", "parent": "ThemeOverlay.AppCompat.Dark.ActionBar", "item": []}, {"name": "AppTheme.PopupOverlay", "parent": "ThemeOverlay.AppCompat.Light", "item": []}, {"name": "ratingBarStyle", "parent": "@android:style/Widget.RatingBar", "item": [{"name": "android:progressDrawable", "text": "@drawable/ratingbar_drawable"}, {"name": "android:minHeight", "text": "48dip"}, {"name": "android:maxHeight", "text": "48dip"}]}]'
-		)
+        Resource = GenericList(Style)
+        data = Resource.from_xml_string(xml_string)
+        self.assertEqual(
+            data.to_xml_bytes(skip_none_field=True).decode(),
+            '<resources><style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar"><item name="colorPrimary">@color/colorPrimary</item><item name="colorPrimaryDark">@color/colorPrimaryDark</item><item name="colorAccent">@color/colorAccent</item></style><style name="AppTheme.NoActionBar"><item name="windowActionBar">false</item><item name="windowNoTitle">true</item></style><style name="AppTheme.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" /><style name="AppTheme.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" /><style name="ratingBarStyle" parent="@android:style/Widget.RatingBar"><item name="android:progressDrawable">@drawable/ratingbar_drawable</item><item name="android:minHeight">48dip</item><item name="android:maxHeight">48dip</item></style></resources>'
+        )
+        self.assertEqual(
+            data.to_json(),
+            '[{"name": "AppTheme", "parent": "Theme.AppCompat.Light.DarkActionBar", "item": [{"name": "colorPrimary", "text": "@color/colorPrimary"}, {"name": "colorPrimaryDark", "text": "@color/colorPrimaryDark"}, {"name": "colorAccent", "text": "@color/colorAccent"}]}, {"name": "AppTheme.NoActionBar", "parent": null, "item": [{"name": "windowActionBar", "text": "false"}, {"name": "windowNoTitle", "text": "true"}]}, {"name": "AppTheme.AppBarOverlay", "parent": "ThemeOverlay.AppCompat.Dark.ActionBar", "item": []}, {"name": "AppTheme.PopupOverlay", "parent": "ThemeOverlay.AppCompat.Light", "item": []}, {"name": "ratingBarStyle", "parent": "@android:style/Widget.RatingBar", "item": [{"name": "android:progressDrawable", "text": "@drawable/ratingbar_drawable"}, {"name": "android:minHeight", "text": "48dip"}, {"name": "android:maxHeight", "text": "48dip"}]}]'
+        )
 
-	def test_declared_to_xml(self):
-		xml_string = """
+    def test_declared_to_xml(self):
+        xml_string = """
         <?xml version="1.0" encoding="utf-8"?>
         <person valid="true">
             <name>John</name>
@@ -143,21 +221,21 @@ class XmlSerializeTestCase(unittest.TestCase):
         </person>
         """.strip()
 
-		class Person(Declared):
-			valid = var(str, as_xml_attr=True)
-			name = var(str)
-			age = var(int)
+        class Person(Declared):
+            valid = var(str, as_xml_attr=True)
+            name = var(str)
+            age = var(int)
 
-		one_person = Person.from_xml_string(xml_string)
-		self.assertEqual(one_person.name, "John")
-		self.assertEqual(one_person.valid, "true")
-		self.assertEqual(one_person.age, 18)
-		self.assertEqual(one_person.to_xml_bytes().decode(),
-		                 '<person valid="true"><name>John</name><age>18</age></person>')
-		self.assertEqual(one_person.to_json(), '{"valid": "true", "name": "John", "age": 18}')
+        one_person = Person.from_xml_string(xml_string)
+        self.assertEqual(one_person.name, "John")
+        self.assertEqual(one_person.valid, "true")
+        self.assertEqual(one_person.age, 18)
+        self.assertEqual(one_person.to_xml_bytes().decode(),
+                         '<person valid="true"><name>John</name><age>18</age></person>')
+        self.assertEqual(one_person.to_json(), '{"valid": "true", "name": "John", "age": 18}')
 
-	def test_c2_xml(self):
-		xml_string = """
+    def test_c2_xml(self):
+        xml_string = """
         <?xml version="1.0" encoding="utf-8"?>
         <ADI xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
             <Objects>
@@ -223,37 +301,37 @@ class XmlSerializeTestCase(unittest.TestCase):
         </ADI>
         """.strip()
 
-		class Property(Declared):
-			name = pascalcase_var(str, as_xml_attr=True)
-			value = var(str, as_xml_text=True)
+        class Property(Declared):
+            name = pascalcase_var(str, as_xml_attr=True)
+            value = var(str, as_xml_text=True)
 
-		class Object(Declared):
-			action = pascalcase_var(str, as_xml_attr=True)
-			code = pascalcase_var(str, as_xml_attr=True)
-			id_ = var(str, field_name="ID", as_xml_attr=True)
-			element_type = pascalcase_var(str, as_xml_attr=True)
+        class Object(Declared):
+            action = pascalcase_var(str, as_xml_attr=True)
+            code = pascalcase_var(str, as_xml_attr=True)
+            id_ = var(str, field_name="ID", as_xml_attr=True)
+            element_type = pascalcase_var(str, as_xml_attr=True)
 
-			properties = var(GenericList(Property), field_name="Property")
+            properties = var(GenericList(Property), field_name="Property")
 
-		class Mapping(Declared):
-			element_code = pascalcase_var(str, as_xml_attr=True)
-			element_id = var(str, as_xml_attr=True, field_name="ElementID")
-			element_type = pascalcase_var(str, as_xml_attr=True)
-			parent_type = pascalcase_var(str, as_xml_attr=True)
-			parent_code = pascalcase_var(str, as_xml_attr=True)
-			parent_id = var(str, as_xml_attr=True, field_name="ParentID")
-			action = pascalcase_var(str, as_xml_attr=True)
+        class Mapping(Declared):
+            element_code = pascalcase_var(str, as_xml_attr=True)
+            element_id = var(str, as_xml_attr=True, field_name="ElementID")
+            element_type = pascalcase_var(str, as_xml_attr=True)
+            parent_type = pascalcase_var(str, as_xml_attr=True)
+            parent_code = pascalcase_var(str, as_xml_attr=True)
+            parent_id = var(str, as_xml_attr=True, field_name="ParentID")
+            action = pascalcase_var(str, as_xml_attr=True)
 
-			properties = var(GenericList(Property), field_name="Property")
+            properties = var(GenericList(Property), field_name="Property")
 
-		class Objects(Declared):
-			object_ = var(GenericList(Object), field_name="Object")
+        class Objects(Declared):
+            object_ = var(GenericList(Object), field_name="Object")
 
-		class Mappings(Declared):
-			mapping = var(GenericList(Mapping), field_name="Mapping")
+        class Mappings(Declared):
+            mapping = var(GenericList(Mapping), field_name="Mapping")
 
-		class ADI(Declared):
-			objects = pascalcase_var(Objects)
-			mappings = pascalcase_var(Mappings)
+        class ADI(Declared):
+            objects = pascalcase_var(Objects)
+            mappings = pascalcase_var(Mappings)
 
-		ADI.from_xml_string(xml_string)
+        ADI.from_xml_string(xml_string)
