@@ -1,17 +1,33 @@
 import copy
 import json
-from enum import Enum
+import re
 import urllib.parse as urlparse
 from collections import UserList
 from datetime import datetime, timezone
 from decimal import Decimal
+from enum import Enum
 from typing import (Any, Callable, Collection, Dict, List, Mapping, Optional, Tuple, Type, Union)
 from uuid import UUID
 from xml.etree import ElementTree as ET
 
 from pydeclares.variables import Var
-from pydeclares.defines import MISSING, JsonData, Json, _REGISTER_DECLARED_CLASS
 from pydeclares.utils import isinstance_safe, issubclass_safe
+from pydeclares.defines import _REGISTER_DECLARED_CLASS, MISSING, Json, JsonData
+
+CDATA_PATTERN = re.compile(r"<!\[CDATA\[(.*?)\]\]>")
+
+
+def custom_escape_cdata(text):
+	if not isinstance_safe(text, str):
+		text = str(text)
+
+	if CDATA_PATTERN.match(text):
+		return text
+	return ET_escape_cdata(text)
+
+
+ET_escape_cdata = ET._escape_cdata
+ET._escape_cdata = custom_escape_cdata
 
 
 class BaseDeclared(type):
@@ -249,7 +265,7 @@ class Declared(metaclass=BaseDeclared):
 			elif field.as_xml_text:
 				# handle has multiple attributes and text element, like <country size="large">Panama</country>
 				root.text = getattr(self, field.name, "")
-			elif issubclass_safe(field.type_, new_list_type):
+			elif issubclass_safe(field.type_, GenericList):
 				# handle a series of struct or native type data
 				field_value = getattr(self, field.name, MISSING)
 				if field_value is not MISSING:
@@ -423,7 +439,7 @@ def _decode_xml_to_declared_class(cls: Type[Declared], element: ET.Element) -> D
 			field_value = element.get(field.field_name, MISSING)
 		elif field.as_xml_text:
 			field_value = element.text
-		elif issubclass_safe(field.type_, new_list_type):
+		elif issubclass_safe(field.type_, GenericList):
 			subs = element.findall(field.field_name)
 			field_value = field.type_.from_xml_list(subs, element.tag)
 		elif issubclass_safe(field.type_, Declared):
