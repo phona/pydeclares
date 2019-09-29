@@ -1,0 +1,4 @@
+*.mypy*
+*.pyc
+*.log
+*vscode
