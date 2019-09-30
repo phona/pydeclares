@@ -15,6 +15,14 @@ from pydeclares.utils import isinstance_safe, issubclass_safe
 from pydeclares.defines import _REGISTER_DECLARED_CLASS, MISSING, Json, JsonData
 
 CDATA_PATTERN = re.compile(r"<!\[CDATA\[(.*?)\]\]>")
+__codecs = {}
+
+
+def codec(T):
+	def wrapped(cls):
+		__codecs[T] = cls
+		return cls
+	return wrapped
 
 
 def custom_escape_cdata(text):
@@ -280,7 +288,7 @@ class Declared(metaclass=BaseDeclared):
 				field_value = getattr(self, field.name, None)
 				if field_value is not None:
 					elem = ET.Element(field.field_name)
-					elem.text = field_value
+					elem.text = str(field_value)
 					root.append(elem)
 		return root
 

@@ -1,10 +1,13 @@
+import re
 import unittest
 
 from pydeclares import var, pascalcase_var, Declared, GenericList
 
 
 class JSONSerializeTestCase(unittest.TestCase):
+
     def test_struct_simple_use(self):
+
         class Person(Declared):
             name = var(str)
             age = var(int)
@@ -14,6 +17,7 @@ class JSONSerializeTestCase(unittest.TestCase):
         self.assertEqual(person.to_json(), data)
 
     def test_list_simple_use(self):
+
         class Person(Declared):
             name = var(str)
             age = var(int)
@@ -24,6 +28,7 @@ class JSONSerializeTestCase(unittest.TestCase):
         self.assertEqual(persons.to_json(), data)
 
     def test_struct_inner_contain(self):
+
         class Home(Declared):
             location = var(str)
 
@@ -37,6 +42,7 @@ class JSONSerializeTestCase(unittest.TestCase):
         self.assertEqual(person.to_json(), data)
 
     def test_list_inner_contain(self):
+
         class Home(Declared):
             location = var(str)
 
@@ -50,6 +56,7 @@ class JSONSerializeTestCase(unittest.TestCase):
         self.assertEqual(person.to_json(), data)
 
     def test_struct_complex_inner_contain(self):
+
         class Furniture(Declared):
             name = var(str)
 
@@ -67,6 +74,7 @@ class JSONSerializeTestCase(unittest.TestCase):
         self.assertEqual(person.to_json(), data)
 
     def test_list_complex_inner_contain(self):
+
         class Furniture(Declared):
             name = var(str)
 
@@ -85,6 +93,7 @@ class JSONSerializeTestCase(unittest.TestCase):
 
 
 class FormDataSerializeTestCase(unittest.TestCase):
+
     def test_simple_use(self):
         form_data = "crcat=test&crsource=test&crkw=buy-a-lot&crint=1&crfloat=1.2"
 
@@ -102,6 +111,7 @@ class FormDataSerializeTestCase(unittest.TestCase):
 
 
 class QueryStringSerializeTestCase(unittest.TestCase):
+
     def test_simple_use(self):
         query_string = "crcat=test&crsource=test&crkw=buy-a-lot&crint=1&crfloat=1.2"
 
@@ -119,6 +129,7 @@ class QueryStringSerializeTestCase(unittest.TestCase):
 
 
 class XmlSerializeTestCase(unittest.TestCase):
+
     def test_simple_use(self):
         xml_string = """
         <?xml version="1.0" encoding="utf-8"?>
@@ -236,14 +247,13 @@ class XmlSerializeTestCase(unittest.TestCase):
 
     def test_c2_xml(self):
         xml_string = """
-        <?xml version="1.0" encoding="utf-8"?>
-        <ADI xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        <ADI>
             <Objects>
-                <Object Action="REGIST" Code="PIC10100000140047ylxy" ID="PIC10100000140047ylxy" ElementType="Picture">
+                <Object Action="REGIST" Code="PIC10100000140047ylxy" ElementType="Picture" ID="PIC10100000140047ylxy">
                     <Property Name="FileURL">ftp://ybs:ybs123@10.61.252.53/picture/hui_ben_gong_she/wa_wa_ai_mao_xian_.jpg</Property>
                     <Property Name="Description">无</Property>
                 </Object>
-                <Object Action="REGIST" Code="PRO10100000140047ylxy" ID="PRO10100000140047ylxy" ElementType="Program">
+                <Object Action="REGIST" Code="PRO10100000140047ylxy" ElementType="Program" ID="PRO10100000140047ylxy">
                     <Property Name="Type">5</Property>
                     <Property Name="Provide">未知</Property>
                     <Property Name="Name">拯救计划</Property>
@@ -274,7 +284,7 @@ class XmlSerializeTestCase(unittest.TestCase):
                     <Property Name="DefinitionFlag">1</Property>
                     <Property Name="MobileLicense">1</Property>
                 </Object>
-                <Object Action="REGIST" Code="MOV10100000140047ylxy" ID="MOV10100000140047ylxy" ElementType="Movie">
+                <Object Action="REGIST" Code="MOV10100000140047ylxy" ElementType="Movie" ID="MOV10100000140047ylxy">
                     <Property Name="Type">1</Property>
                     <Property Name="FileURL">ftp://ybs:ybs123@10.61.252.53/201906/hbgs/wwamx/10100000140047.ts</Property>
                     <Property Name="SourceDRMType">0</Property>
@@ -290,22 +300,28 @@ class XmlSerializeTestCase(unittest.TestCase):
                 </Object>
             </Objects>
             <Mappings>
-                <Mapping ElementCode="PRO10100000140047ylxy" ElementID="PRO10100000140047ylxy" ElementType="Program" ParentType="Picture" ParentCode="PIC10100000140047ylxy" ParentID="PIC10100000140047ylxy" Action="REGIST">
+                <Mapping Action="REGIST" ElementCode="PRO10100000140047ylxy" ElementID="PRO10100000140047ylxy" ElementType="Program" ParentCode="PIC10100000140047ylxy" ParentID="PIC10100000140047ylxy" ParentType="Picture">
                     <Property Name="Type">1</Property>
                 </Mapping>
-                <Mapping ElementCode="PRO10100000140047ylxy" ElementID="PRO10100000140047ylxy" ElementType="Program" ParentType="Series" ParentCode="SERwwamxylxy" ParentID="SERwwamxylxy" Action="REGIST">
+                <Mapping Action="REGIST" ElementCode="PRO10100000140047ylxy" ElementID="PRO10100000140047ylxy" ElementType="Program" ParentCode="SERwwamxylxy" ParentID="SERwwamxylxy" ParentType="Series">
                     <Property Name="Sequence">32</Property>
                 </Mapping>
-                <Mapping ElementCode="MOV10100000140047ylxy" ElementID="MOV10100000140047ylxy" ElementType="Movie" ParentType="Program" ParentCode="PRO10100000140047ylxy" ParentID="PRO10100000140047ylxy" Action="REGIST"/>
+                <Mapping Action="REGIST" ElementCode="MOV10100000140047ylxy" ElementID="MOV10100000140047ylxy" ElementType="Movie" ParentCode="PRO10100000140047ylxy" ParentID="PRO10100000140047ylxy" ParentType="Program" />
             </Mappings>
         </ADI>
-        """.strip()
+        """.strip().replace("\n", "").replace("\t", "")
+        pattern = re.compile(r">\s*<")
+        xml_string = pattern.sub("><", xml_string)
 
         class Property(Declared):
+            __xml_tag_name__ = "Property"
+
             name = pascalcase_var(str, as_xml_attr=True)
             value = var(str, as_xml_text=True)
 
         class Object(Declared):
+            __xml_tag_name__ = "Object"
+
             action = pascalcase_var(str, as_xml_attr=True)
             code = pascalcase_var(str, as_xml_attr=True)
             id_ = var(str, field_name="ID", as_xml_attr=True)
@@ -314,9 +330,11 @@ class XmlSerializeTestCase(unittest.TestCase):
             properties = var(GenericList(Property), field_name="Property")
 
         class Mapping(Declared):
+            __xml_tag_name__ = "Mapping"
+
             element_code = pascalcase_var(str, as_xml_attr=True)
-            element_id = var(str, as_xml_attr=True, field_name="ElementID")
             element_type = pascalcase_var(str, as_xml_attr=True)
+            element_id = var(str, as_xml_attr=True, field_name="ElementID")
             parent_type = pascalcase_var(str, as_xml_attr=True)
             parent_code = pascalcase_var(str, as_xml_attr=True)
             parent_id = var(str, as_xml_attr=True, field_name="ParentID")
@@ -325,13 +343,62 @@ class XmlSerializeTestCase(unittest.TestCase):
             properties = var(GenericList(Property), field_name="Property")
 
         class Objects(Declared):
+            __xml_tag_name__ = "Objects"
+
             object_ = var(GenericList(Object), field_name="Object")
 
         class Mappings(Declared):
+            __xml_tag_name__ = "Mappings"
+
             mapping = var(GenericList(Mapping), field_name="Mapping")
 
         class ADI(Declared):
+            __xml_tag_name__ = "ADI"
+
             objects = pascalcase_var(Objects)
             mappings = pascalcase_var(Mappings)
 
-        ADI.from_xml_string(xml_string)
+        adi = ADI.from_xml_string(xml_string)
+        self.assertMultiLineEqual(adi.to_xml_bytes(encoding="utf-8").decode("utf-8"), xml_string)
+
+    def test_c2_xml2(self):
+
+        class VideoFormat(Declared):
+            __xml_tag_name__ = "VideoFormat"
+
+            image_width = pascalcase_var(int)
+            image_height = pascalcase_var(int)
+            bits_per_pixel = pascalcase_var(int)
+            pixel_format = pascalcase_var(int)
+            frame_rate = pascalcase_var(int)
+            compression = pascalcase_var(str)
+            data_rate = pascalcase_var(int)
+            scan_mode = pascalcase_var(int)
+            gop_size = pascalcase_var(str)
+            b_frame_count = pascalcase_var(int)
+            p_frame_count = pascalcase_var(int)
+
+        class FileFormat(Declared):
+            __xml_tag_name__ = "FileFormat"
+
+            video_format = pascalcase_var(VideoFormat)
+
+        xml_string = """
+            <FileFormat>
+            <VideoFormat>
+                <ImageWidth>1920</ImageWidth>
+                <ImageHeight>1080</ImageHeight>
+                <BitsPerPixel>8</BitsPerPixel>
+                <PixelFormat>0</PixelFormat>
+                <FrameRate>25</FrameRate>
+                <Compression>0x36565559</Compression>
+                <DataRate>0</DataRate>
+                <ScanMode>2</ScanMode>
+                <GopSize>15-25</GopSize>
+                <BFrameCount>2</BFrameCount>
+                <PFrameCount>4</PFrameCount>
+            </VideoFormat>
+            </FileFormat>
+        """.strip().replace(" ", "").replace("\n", "").replace("\t", "")
+        adi = FileFormat.from_xml_string(xml_string)
+        self.assertMultiLineEqual(adi.to_xml_bytes().decode("utf8"), xml_string)
