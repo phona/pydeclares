@@ -383,7 +383,7 @@ class XmlSerializeTestCase(unittest.TestCase):
 
             video_format = pascalcase_var(VideoFormat)
 
-        xml_string = """
+        xml_string = """<?xml version='1.0' encoding='utf8'?>
             <FileFormat>
             <VideoFormat>
                 <ImageWidth>1920</ImageWidth>
@@ -391,7 +391,7 @@ class XmlSerializeTestCase(unittest.TestCase):
                 <BitsPerPixel>8</BitsPerPixel>
                 <PixelFormat>0</PixelFormat>
                 <FrameRate>25</FrameRate>
-                <Compression>0x36565559</Compression>
+                <Compression>11</Compression>
                 <DataRate>0</DataRate>
                 <ScanMode>2</ScanMode>
                 <GopSize>15-25</GopSize>
@@ -399,6 +399,10 @@ class XmlSerializeTestCase(unittest.TestCase):
                 <PFrameCount>4</PFrameCount>
             </VideoFormat>
             </FileFormat>
-        """.strip().replace(" ", "").replace("\n", "").replace("\t", "")
+        """
+        pattern = re.compile(r">\s*<")
+        xml_string = pattern.sub("><", xml_string)
+        xml_string = xml_string.strip().replace("?>", "?>\n")
+
         adi = FileFormat.from_xml_string(xml_string)
-        self.assertMultiLineEqual(adi.to_xml_bytes().decode("utf8"), xml_string)
+        self.assertMultiLineEqual(adi.to_xml_bytes(encoding="utf8").decode("utf8"), xml_string)

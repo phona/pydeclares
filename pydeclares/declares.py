@@ -110,7 +110,7 @@ class Declared(metaclass=BaseDeclared):
 					raise AttributeError(
 					    f"field {field.name!r} is required. if you doesn't want to init this variable in initializer, "
 					    f"please set `init` argument to False for this variable.")
-			super().__setattr__(field.name, field_value)
+			setattr(self, field.name, field_value)
 
 		self.__post_init__(**omits)
 
