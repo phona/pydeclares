@@ -4,9 +4,8 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name='pydeclares',
+    name='PyDeclares',
     version='0.1',
-    scripts=['pydeclares'],
     author="heweitao",
     author_email="675428202@qq.com",
     description="A tool for provide format and serialize support to json, xml, form data and query string.",

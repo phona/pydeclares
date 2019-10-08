@@ -3,3 +3,7 @@
 *.log
 *vscode
 *.idea*
+build
+*venv
+PyDeclares.egg-info
+dist
