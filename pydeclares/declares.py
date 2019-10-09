@@ -3,10 +3,8 @@ import json
 import re
 import urllib.parse as urlparse
 from collections import UserList
-from datetime import datetime, timezone
 from decimal import Decimal
 from typing import (Any, Callable, Collection, Dict, List, Mapping, Optional, Tuple, Type, Union)
-from uuid import UUID
 from xml.etree import ElementTree as ET
 
 from pydeclares.variables import Var
@@ -245,7 +243,7 @@ class Declared(metaclass=BaseDeclared):
         return _decode_xml_to_declared_class(cls, element)
 
     @classmethod
-    def from_xml_string(cls: Type['Declared'], xml_string) -> ET.Element:
+    def from_xml_string(cls: Type['Declared'], xml_string: str) -> ET.Element:
         return cls.from_xml(ET.XML(xml_string))
 
     def to_xml(self, skip_none_field: bool = False) -> ET.Element:
@@ -506,7 +504,8 @@ def _cast_field_value(field: Var, field_value: Any):
                 except ValueError as why:
                     raise ValueError(
                         f"{why}: field {field.name} does't support cast type {type(field_value)}({field_value!r}) to {field.type_},"
-                        f"if you want to avoid this cast in here just turn off `auto_cast` when you define this variable.")
+                        f"if you want to avoid this cast in here just turn off `auto_cast` when you define this variable."
+                    )
             else:
                 value = field_value
     return value
