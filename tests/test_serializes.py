@@ -250,7 +250,7 @@ class XmlSerializeTestCase(unittest.TestCase):
         <ADI>
             <Objects>
                 <Object Action="REGIST" Code="PIC10100000140047ylxy" ElementType="Picture" ID="PIC10100000140047ylxy">
-                    <Property Name="FileURL">ftp://ybs:ybs123@10.61.252.53/picture/hui_ben_gong_she/wa_wa_ai_mao_xian_.jpg</Property>
+                    <Property Name="FileURL"></Property>
                     <Property Name="Description">无</Property>
                 </Object>
                 <Object Action="REGIST" Code="PRO10100000140047ylxy" ElementType="Program" ID="PRO10100000140047ylxy">
@@ -286,7 +286,7 @@ class XmlSerializeTestCase(unittest.TestCase):
                 </Object>
                 <Object Action="REGIST" Code="MOV10100000140047ylxy" ElementType="Movie" ID="MOV10100000140047ylxy">
                     <Property Name="Type">1</Property>
-                    <Property Name="FileURL">ftp://ybs:ybs123@10.61.252.53/201906/hbgs/wwamx/10100000140047.ts</Property>
+                    <Property Name="FileURL">ftp://hh:hh@192.168.1.99/picture/hui_ben_gong_she/wa_wa_ai_mao_xian_.ts</Property>
                     <Property Name="SourceDRMType">0</Property>
                     <Property Name="DestDRMType">0</Property>
                     <Property Name="AudioType">1</Property>
@@ -359,6 +359,7 @@ class XmlSerializeTestCase(unittest.TestCase):
             mappings = pascalcase_var(Mappings)
 
         adi = ADI.from_xml_string(xml_string)
+        print(adi.to_xml_bytes(encoding="utf-8").decode("utf-8"))
         self.assertMultiLineEqual(adi.to_xml_bytes(encoding="utf-8").decode("utf-8"), xml_string)
 
     def test_c2_xml2(self):
