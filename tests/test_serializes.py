@@ -5,9 +5,7 @@ from pydeclares import var, pascalcase_var, Declared, GenericList
 
 
 class JSONSerializeTestCase(unittest.TestCase):
-
     def test_struct_simple_use(self):
-
         class Person(Declared):
             name = var(str)
             age = var(int)
@@ -17,7 +15,6 @@ class JSONSerializeTestCase(unittest.TestCase):
         self.assertEqual(person.to_json(), data)
 
     def test_list_simple_use(self):
-
         class Person(Declared):
             name = var(str)
             age = var(int)
@@ -28,7 +25,6 @@ class JSONSerializeTestCase(unittest.TestCase):
         self.assertEqual(persons.to_json(), data)
 
     def test_struct_inner_contain(self):
-
         class Home(Declared):
             location = var(str)
 
@@ -42,7 +38,6 @@ class JSONSerializeTestCase(unittest.TestCase):
         self.assertEqual(person.to_json(), data)
 
     def test_list_inner_contain(self):
-
         class Home(Declared):
             location = var(str)
 
@@ -56,7 +51,6 @@ class JSONSerializeTestCase(unittest.TestCase):
         self.assertEqual(person.to_json(), data)
 
     def test_struct_complex_inner_contain(self):
-
         class Furniture(Declared):
             name = var(str)
 
@@ -74,7 +68,6 @@ class JSONSerializeTestCase(unittest.TestCase):
         self.assertEqual(person.to_json(), data)
 
     def test_list_complex_inner_contain(self):
-
         class Furniture(Declared):
             name = var(str)
 
@@ -93,7 +86,6 @@ class JSONSerializeTestCase(unittest.TestCase):
 
 
 class FormDataSerializeTestCase(unittest.TestCase):
-
     def test_simple_use(self):
         form_data = "crcat=test&crsource=test&crkw=buy-a-lot&crint=1&crfloat=1.2"
 
@@ -111,7 +103,6 @@ class FormDataSerializeTestCase(unittest.TestCase):
 
 
 class QueryStringSerializeTestCase(unittest.TestCase):
-
     def test_simple_use(self):
         query_string = "crcat=test&crsource=test&crkw=buy-a-lot&crint=1&crfloat=1.2"
 
@@ -129,7 +120,6 @@ class QueryStringSerializeTestCase(unittest.TestCase):
 
 
 class XmlSerializeTestCase(unittest.TestCase):
-
     def test_simple_use(self):
         xml_string = """
         <?xml version="1.0" encoding="utf-8"?>
@@ -362,7 +352,6 @@ class XmlSerializeTestCase(unittest.TestCase):
         self.assertMultiLineEqual(adi.to_xml_bytes(encoding="utf-8").decode("utf-8"), xml_string)
 
     def test_c2_xml_ident(self):
-
         class VideoFormat(Declared):
             __xml_tag_name__ = "VideoFormat"
 
@@ -401,7 +390,7 @@ class XmlSerializeTestCase(unittest.TestCase):
 </FileFormat>"""
 
         adi = FileFormat.from_xml_string(xml_string)
-        self.assertMultiLineEqual(adi.to_xml_bytes(encoding="utf8", ident=" "*4 ).decode("utf8"), xml_string)
+        self.assertMultiLineEqual(adi.to_xml_bytes(encoding="utf8", indent=" " * 4).decode("utf8"), xml_string)
 
         xml_string = """<?xml version='1.0' encoding='utf8'?>
 <FileFormat>
@@ -421,4 +410,4 @@ class XmlSerializeTestCase(unittest.TestCase):
 </FileFormat>"""
 
         adi = FileFormat.from_xml_string(xml_string)
-        self.assertMultiLineEqual(adi.to_xml_bytes(encoding="utf8", ident=" "*6).decode("utf8"), xml_string)
+        self.assertMultiLineEqual(adi.to_xml_bytes(encoding="utf8", indent=" " * 6).decode("utf8"), xml_string)

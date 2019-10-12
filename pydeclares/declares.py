@@ -4,13 +4,15 @@ import re
 import urllib.parse as urlparse
 from collections import UserList
 from decimal import Decimal
-from typing import (Any, Callable, Collection, Dict, List, Mapping, Optional, Tuple, Type, Union)
+from typing import (Any, Callable, Collection, Dict, List, Mapping, Optional,
+                    Tuple, Type, Union)
 from xml.etree import ElementTree as ET
 
+from pydeclares.codecs import CodecNotFoundError, decode, encode
+from pydeclares.defines import (_REGISTER_DECLARED_CLASS, MISSING, Json,
+                                JsonData)
+from pydeclares.utils import xml_prettify, isinstance_safe, issubclass_safe
 from pydeclares.variables import Var
-from pydeclares.codecs import encode, decode, CodecNotFoundError
-from pydeclares.utils import isinstance_safe, issubclass_safe
-from pydeclares.defines import _REGISTER_DECLARED_CLASS, MISSING, Json, JsonData
 
 CDATA_PATTERN = re.compile(r"<!\[CDATA\[(.*?)\]\]>")
 
@@ -26,23 +28,6 @@ def custom_escape_cdata(text):
 
 ET_escape_cdata = ET._escape_cdata
 ET._escape_cdata = custom_escape_cdata
-
-
-def ident_xml(element, indent, newline, level=0):  # elemnt为传进来的Elment类，参数indent用于缩进，newline用于换行
-    if element:  # 判断element是否有子元素
-        if (element.text is None) or element.text.isspace():  # 如果element的text没有内容
-            element.text = newline + indent * (level + 1)
-        else:
-            element.text = newline + indent * (level + 1) + element.text.strip() + newline + indent * (level + 1)
-        # else:  # 此处两行如果把注释去掉，Element的text也会另起一行
-        # element.text = newline + indent * (level + 1) + element.text.strip() + newline + indent * level
-    temp = list(element)  # 将element转成list
-    for subelement in temp:
-        if temp.index(subelement) < (len(temp) - 1):  # 如果不是list的最后一个元素，说明下一个行是同级别元素的起始，缩进应一致
-            subelement.tail = newline + indent * (level + 1)
-        else:  # 如果是list的最后一个元素， 说明下一行是母元素的结束，缩进应该少一个
-            subelement.tail = newline + indent * level
-        ident_xml(subelement, indent, newline, level=level + 1)  # 对子元素进行递归操作
 
 
 class BaseDeclared(type):
@@ -263,7 +248,7 @@ class Declared(metaclass=BaseDeclared):
     def from_xml_string(cls: Type['Declared'], xml_string: str) -> ET.Element:
         return cls.from_xml(ET.XML(xml_string))
 
-    def to_xml(self, skip_none_field: bool = False, ident: str = None) -> ET.Element:
+    def to_xml(self, skip_none_field: bool = False, indent: str = None) -> ET.Element:
         """
         <?xml version="1.0"?>
         <tag id="`id`" style="`style`">
@@ -275,7 +260,7 @@ class Declared(metaclass=BaseDeclared):
         for field in fields(self):
             if field.as_xml_attr:
                 # handle attributes
-                new_attr = getattr(self, field.name, None)
+                new_attr = getattr(self, field.name, "")
                 if new_attr:
                     try:
                         attr = str(decode(field.type_, new_attr))
@@ -313,13 +298,13 @@ class Declared(metaclass=BaseDeclared):
                     elem.text = text
                     root.append(elem)
 
-        if ident is not None:
-            ident_xml(root, ident, "\n")
+        if indent is not None:
+            xml_prettify(root, indent, "\n")
 
         return root
 
-    def to_xml_bytes(self, skip_none_field: bool = False, ident: str = None, **kwargs) -> bytes:
-        return ET.tostring(self.to_xml(skip_none_field, ident), **kwargs)
+    def to_xml_bytes(self, skip_none_field: bool = False, indent: str = None, **kwargs) -> bytes:
+        return ET.tostring(self.to_xml(skip_none_field, indent), **kwargs)
 
     def __str__(self):
         args = [f"{var.name}={str(getattr(self, var.name, 'missing'))}" for _, var in self.meta["vars"].items()]
@@ -422,20 +407,20 @@ class GenericList(UserList):
     def from_xml_string(cls: Type['GenericList'], xml_string) -> 'GenericList':
         return cls.from_xml(ET.XML(xml_string))
 
-    def to_xml(self, tag: str = None, skip_none_field: bool = False, ident: str = None) -> ET.Element:
+    def to_xml(self, tag: str = None, skip_none_field: bool = False, indent: str = None) -> ET.Element:
         if tag is None:
             tag = self.tag
         root = ET.Element(tag)
         for item in self:
             root.append(item.to_xml(skip_none_field=skip_none_field))
 
-        if ident is not None:
-            ident_xml(root, ident, "\n")
+        if indent is not None:
+            xml_prettify(root, indent, "\n")
 
         return root
 
-    def to_xml_bytes(self, tag: str = None, skip_none_field: bool = False, ident: str = None, **kwargs) -> bytes:
-        return ET.tostring(self.to_xml(tag, skip_none_field, ident), **kwargs)
+    def to_xml_bytes(self, tag: str = None, skip_none_field: bool = False, indent: str = None, **kwargs) -> bytes:
+        return ET.tostring(self.to_xml(tag, skip_none_field, indent), **kwargs)
 
     def __str__(self):
         return f"{self.__class__.__name__}({', '.join(str(i) for i in self)})"
@@ -523,7 +508,7 @@ def _cast_field_value(field: Var, field_value: Any):
         try:
             value = decode(field.type_, field_value)
         except CodecNotFoundError:
-            if type(field_value) != field.type_ and field.auto_cast and field:
+            if type(field_value) != field.type_ and field.auto_cast and field and field_value:
                 try:
                     value = field.type_(field_value)
                 except ValueError as why:

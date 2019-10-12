@@ -1,4 +1,5 @@
 import inspect
+from xml.etree.ElementTree import Element
 
 
 def tuple_str(obj_name, fields):
@@ -43,3 +44,25 @@ def is_new_type_subclass_safe(cls, classinfo):
 
 def is_new_type(type_):
 	return inspect.isfunction(type_) and hasattr(type_, "__supertype__")
+
+
+def xml_prettify(element: Element, indent: str, newline: str = '\n', level: int = 0) -> None:
+    """
+    :params element:
+    :params indent:
+    :params newline:
+    :params level:
+    :return:
+    """
+    if element:
+        if (element.text is None) or element.text.isspace():
+            element.text = newline + indent * (level + 1)
+        else:
+            element.text = newline + indent * (level + 1) + element.text.strip() + newline + indent * (level + 1)
+    temp = list(element)
+    for subelement in list(element):
+        if temp.index(subelement) < (len(temp) - 1):  # 如果不是list的最后一个元素，说明下一个行是同级别元素的起始，缩进应一致
+            subelement.tail = newline + indent * (level + 1)
+        else:  # 如果是list的最后一个元素， 说明下一行是母元素的结束，缩进应该少一个
+            subelement.tail = newline + indent * level
+        xml_prettify(subelement, indent, newline, level=level + 1)  # 对子元素进行递归操作
