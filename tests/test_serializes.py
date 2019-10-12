@@ -250,7 +250,7 @@ class XmlSerializeTestCase(unittest.TestCase):
         <ADI>
             <Objects>
                 <Object Action="REGIST" Code="PIC10100000140047ylxy" ElementType="Picture" ID="PIC10100000140047ylxy">
-                    <Property Name="FileURL"></Property>
+                    <Property Name="FileURL">heihei</Property>
                     <Property Name="Description">无</Property>
                 </Object>
                 <Object Action="REGIST" Code="PRO10100000140047ylxy" ElementType="Program" ID="PRO10100000140047ylxy">
@@ -359,10 +359,9 @@ class XmlSerializeTestCase(unittest.TestCase):
             mappings = pascalcase_var(Mappings)
 
         adi = ADI.from_xml_string(xml_string)
-        print(adi.to_xml_bytes(encoding="utf-8").decode("utf-8"))
         self.assertMultiLineEqual(adi.to_xml_bytes(encoding="utf-8").decode("utf-8"), xml_string)
 
-    def test_c2_xml2(self):
+    def test_c2_xml_ident(self):
 
         class VideoFormat(Declared):
             __xml_tag_name__ = "VideoFormat"
@@ -385,25 +384,41 @@ class XmlSerializeTestCase(unittest.TestCase):
             video_format = pascalcase_var(VideoFormat)
 
         xml_string = """<?xml version='1.0' encoding='utf8'?>
-            <FileFormat>
-            <VideoFormat>
-                <ImageWidth>1920</ImageWidth>
-                <ImageHeight>1080</ImageHeight>
-                <BitsPerPixel>8</BitsPerPixel>
-                <PixelFormat>0</PixelFormat>
-                <FrameRate>25</FrameRate>
-                <Compression>11</Compression>
-                <DataRate>0</DataRate>
-                <ScanMode>2</ScanMode>
-                <GopSize>15-25</GopSize>
-                <BFrameCount>2</BFrameCount>
-                <PFrameCount>4</PFrameCount>
-            </VideoFormat>
-            </FileFormat>
-        """
-        pattern = re.compile(r">\s*<")
-        xml_string = pattern.sub("><", xml_string)
-        xml_string = xml_string.strip().replace("?>", "?>\n")
+<FileFormat>
+    <VideoFormat>
+        <ImageWidth>1920</ImageWidth>
+        <ImageHeight>1080</ImageHeight>
+        <BitsPerPixel>8</BitsPerPixel>
+        <PixelFormat>0</PixelFormat>
+        <FrameRate>25</FrameRate>
+        <Compression>11</Compression>
+        <DataRate>0</DataRate>
+        <ScanMode>2</ScanMode>
+        <GopSize>15-25</GopSize>
+        <BFrameCount>2</BFrameCount>
+        <PFrameCount>4</PFrameCount>
+    </VideoFormat>
+</FileFormat>"""
 
         adi = FileFormat.from_xml_string(xml_string)
-        self.assertMultiLineEqual(adi.to_xml_bytes(encoding="utf8").decode("utf8"), xml_string)
+        self.assertMultiLineEqual(adi.to_xml_bytes(encoding="utf8", ident=" "*4 ).decode("utf8"), xml_string)
+
+        xml_string = """<?xml version='1.0' encoding='utf8'?>
+<FileFormat>
+      <VideoFormat>
+            <ImageWidth>1920</ImageWidth>
+            <ImageHeight>1080</ImageHeight>
+            <BitsPerPixel>8</BitsPerPixel>
+            <PixelFormat>0</PixelFormat>
+            <FrameRate>25</FrameRate>
+            <Compression>11</Compression>
+            <DataRate>0</DataRate>
+            <ScanMode>2</ScanMode>
+            <GopSize>15-25</GopSize>
+            <BFrameCount>2</BFrameCount>
+            <PFrameCount>4</PFrameCount>
+      </VideoFormat>
+</FileFormat>"""
+
+        adi = FileFormat.from_xml_string(xml_string)
+        self.assertMultiLineEqual(adi.to_xml_bytes(encoding="utf8", ident=" "*6).decode("utf8"), xml_string)
