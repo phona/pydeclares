@@ -11,7 +11,7 @@ from xml.etree import ElementTree as ET
 from pydeclares.codecs import CodecNotFoundError, decode, encode
 from pydeclares.defines import (_REGISTER_DECLARED_CLASS, MISSING, Json,
                                 JsonData)
-from pydeclares.utils import xml_prettify, isinstance_safe, issubclass_safe
+from pydeclares.utils import isinstance_safe, issubclass_safe, xml_prettify
 from pydeclares.variables import Var
 
 CDATA_PATTERN = re.compile(r"<!\[CDATA\[(.*?)\]\]>")
@@ -275,6 +275,8 @@ class Declared(metaclass=BaseDeclared):
                         text = str(decode(field.type_, text))
                     except CodecNotFoundError:
                         """"""
+                elif not skip_none_field:
+                    text = ""
                 root.text = text
             elif issubclass_safe(field.type_, GenericList):
                 # handle a series of struct or native type data
@@ -289,13 +291,16 @@ class Declared(metaclass=BaseDeclared):
             else:
                 # handle simple node just like <name>John</name>
                 field_value = getattr(self, field.name, None)
+                elem = ET.Element(field.field_name)
                 if field_value is not None:
-                    elem = ET.Element(field.field_name)
                     try:
                         text = str(decode(field.type_, field_value))
                     except CodecNotFoundError:
                         text = str(field_value)
                     elem.text = text
+                    root.append(elem)
+                elif not skip_none_field:
+                    elem.text = ""
                     root.append(elem)
 
         if indent is not None:

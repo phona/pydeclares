@@ -1,6 +1,6 @@
-from uuid import UUID
-from enum import Enum
 from datetime import datetime, timezone
+from enum import Enum
+from uuid import UUID
 
 from pydeclares.utils import isinstance_safe
 

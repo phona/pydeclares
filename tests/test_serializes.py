@@ -1,7 +1,7 @@
 import re
 import unittest
 
-from pydeclares import var, pascalcase_var, Declared, GenericList
+from pydeclares import Declared, GenericList, pascalcase_var, var
 
 
 class JSONSerializeTestCase(unittest.TestCase):
@@ -351,7 +351,7 @@ class XmlSerializeTestCase(unittest.TestCase):
         adi = ADI.from_xml_string(xml_string)
         self.assertMultiLineEqual(adi.to_xml_bytes(encoding="utf-8").decode("utf-8"), xml_string)
 
-    def test_c2_xml_ident(self):
+    def test_c2_xml_prettify(self):
         class VideoFormat(Declared):
             __xml_tag_name__ = "VideoFormat"
 
@@ -411,3 +411,27 @@ class XmlSerializeTestCase(unittest.TestCase):
 
         adi = FileFormat.from_xml_string(xml_string)
         self.assertMultiLineEqual(adi.to_xml_bytes(encoding="utf8", indent=" " * 6).decode("utf8"), xml_string)
+
+    def test_empty_node(self):
+        xml_string = """
+        <?xml version="1.0" encoding="utf-8"?>
+        <person valid="true">
+            <name>John</name>
+            <age></age>
+        </person>
+        """.strip()
+
+        class Person(Declared):
+            valid = var(str, as_xml_attr=True)
+            name = var(str)
+            age = var(int)
+
+        one_person = Person.from_xml_string(xml_string)
+        self.assertEqual(one_person.name, "John")
+        self.assertEqual(one_person.valid, "true")
+        self.assertIs(one_person.age, None)
+        self.assertEqual(one_person.to_xml_bytes().decode(), '<person valid="true"><name>John</name><age /></person>')
+        self.assertEqual(one_person.to_json(), '{"valid": "true", "name": "John", "age": null}')
+        self.assertEqual(
+            one_person.to_xml_bytes(skip_none_field=True).decode(), '<person valid="true"><name>John</name></person>')
+        self.assertEqual(one_person.to_json(skip_none_field=True), '{"valid": "true", "name": "John"}')

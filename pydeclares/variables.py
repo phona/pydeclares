@@ -1,7 +1,7 @@
 import re
 
+from pydeclares.defines import _REGISTER_DECLARED_CLASS, MISSING
 from pydeclares.utils import isinstance_safe
-from pydeclares.defines import MISSING, _REGISTER_DECLARED_CLASS
 
 
 class NamingStyle:

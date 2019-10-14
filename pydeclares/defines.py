@@ -3,9 +3,8 @@ from typing import Any, Dict, Type, Union
 
 
 class _MISSING_TYPE:
-
-	def __str__(self):
-		return "MISSING"
+    def __str__(self):
+        return "MISSING"
 
 
 MISSING = _MISSING_TYPE()
