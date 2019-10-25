@@ -28,7 +28,10 @@ def decode(T, inst):
     except KeyError or AttributeError:
         for nT in _CODECS.keys():
             if issubclass_safe(T, nT):
-                return _CODECS[nT].encode(inst)
+                try:
+                    return _CODECS[nT].decode(inst)
+                except AttributeError:
+                    return T(inst)
         else:
             raise CodecNotFoundError(f"Decoder of {T!r} is not found")
 
