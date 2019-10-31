@@ -4,13 +4,11 @@ import re
 import urllib.parse as urlparse
 from collections import UserList
 from decimal import Decimal
-from typing import (Any, Callable, Collection, Dict, List, Mapping, Optional,
-                    Tuple, Type, Union)
+from typing import (Any, Callable, Collection, Dict, List, Mapping, Optional, Tuple, Type, Union)
 from xml.etree import ElementTree as ET
 
 from pydeclares.codecs import CodecNotFoundError, decode, encode
-from pydeclares.defines import (_REGISTER_DECLARED_CLASS, MISSING, Json,
-                                JsonData)
+from pydeclares.defines import (_REGISTER_DECLARED_CLASS, MISSING, Json, JsonData)
 from pydeclares.utils import isinstance_safe, issubclass_safe, xml_prettify
 from pydeclares.variables import Var
 
@@ -203,7 +201,14 @@ class Declared(metaclass=BaseDeclared):
         if self.has_nest_declared_class():
             raise ValueError("can't serialize with nested declared class.")
 
-        return "&".join([f"{k}={v}" for k, v in self.to_dict(skip_none_field=skip_none_field).items()])
+        data = self.to_dict(skip_none_field=skip_none_field)
+        for k, v in data.items():
+            try:
+                data[k] = encode(v)
+            except CodecNotFoundError:
+                pass
+
+        return "&".join([f"{k}={v}" for k, v in data.items()])
 
     @classmethod
     def from_query_string(cls: Type['Declared'], query_string: str):
@@ -222,12 +227,14 @@ class Declared(metaclass=BaseDeclared):
         if self.has_nest_declared_class():
             raise ValueError("can't deserialize to nested declared class.")
 
-        return urlparse.urlencode(self.to_dict(skip_none_field=skip_none_field),
-                                  doseq=doseq,
-                                  safe=safe,
-                                  encoding=encoding,
-                                  errors=errors,
-                                  quote_via=quote_via)
+        data = self.to_dict(skip_none_field=skip_none_field)
+        for k, v in data.items():
+            try:
+                data[k] = encode(v)
+            except CodecNotFoundError:
+                pass
+
+        return urlparse.urlencode(data, doseq=doseq, safe=safe, encoding=encoding, errors=errors, quote_via=quote_via)
 
     @classmethod
     def from_xml(cls: Type['Declared'], element: ET.Element) -> ET.Element:

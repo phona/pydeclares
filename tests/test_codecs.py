@@ -89,4 +89,8 @@ class CodecsTestCase(unittest.TestCase):
         klass = Klass(date(2019, 10, 8), CustomDate(2019, 10, 7))
         json_string = "{\"d\": \"2019-10-08\", \"sd\": \"2019-10-07p\"}"
         self.assertEqual(klass.to_json(), json_string)
+        self.assertEqual(klass.to_query_string(), "d=2019-10-08&sd=2019-10-07p")
+        self.assertEqual(klass.to_form_data(), "d=2019-10-08&sd=2019-10-07p")
         self.assertEqual(Klass.from_json(json_string), klass)
+        self.assertEqual(Klass.from_query_string("d=2019-10-08&sd=2019-10-07p"), klass)
+        self.assertEqual(Klass.from_form_data("d=2019-10-08&sd=2019-10-07p"), klass)
