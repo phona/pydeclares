@@ -1,11 +1,13 @@
 import setuptools
 
+from pydeclares import version
+
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name='pydeclares',
-    version='0.6',
+    version=version,
     author="heweitao",
     author_email="675428202@qq.com",
     description="A tool for provide format and serialize support to json, xml, form data and query string.",

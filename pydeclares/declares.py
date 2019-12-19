@@ -268,7 +268,7 @@ class Declared(metaclass=BaseDeclared):
             if field.as_xml_attr:
                 # handle attributes
                 new_attr = getattr(self, field.name, "")
-                if new_attr:
+                if new_attr and new_attr is not MISSING:
                     try:
                         attr = str(decode(field.type_, new_attr))
                     except CodecNotFoundError:
@@ -297,9 +297,9 @@ class Declared(metaclass=BaseDeclared):
                     root.append(field_value.to_xml(skip_none_field))
             else:
                 # handle simple node just like <name>John</name>
-                field_value = getattr(self, field.name, None)
+                field_value = getattr(self, field.name, MISSING)
                 elem = ET.Element(field.field_name)
-                if field_value is not None:
+                if field_value is not MISSING and field_value is not None:
                     try:
                         text = str(decode(field.type_, field_value))
                     except CodecNotFoundError:
@@ -360,7 +360,10 @@ class GenericList(UserList):
             raise TypeError(
                 f"Type {self.__class__.__name__} cannot be intialize directly; please use new_list_type instead")
 
-        super().__init__((self.__type__.from_dict(i) for i in initlist))
+        if getattr(self.__type__, "from_dict", None):
+            super().__init__((self.__type__.from_dict(i) for i in initlist))
+        else:
+            super().__init__(initlist)
         # type checked
         for item in self.data:
             if not isinstance_safe(item, self.__type__):
@@ -468,6 +471,9 @@ def new_list_type(type_: Type) -> GenericList:
 
 
 def _decode_xml_to_declared_class(cls: Type[Declared], element: ET.Element) -> Declared:
+    if element is MISSING:
+        return MISSING
+
     init_kwargs: Dict[str, Any] = {}
     for field in fields(cls):
         if field.as_xml_attr:
@@ -483,7 +489,7 @@ def _decode_xml_to_declared_class(cls: Type[Declared], element: ET.Element) -> D
                 sub = MISSING
             field_value = field.type_.from_xml(sub)
         else:
-            field_value = element.find(field.field_name).text
+            field_value = getattr(element.find(field.field_name), "text", MISSING)
         init_kwargs[field.name] = _cast_field_value(field, field_value)
     return cls(**init_kwargs)
 
@@ -509,7 +515,7 @@ def _decode_dict_to_declared_class(cls: Type[Declared], kvs: Union['List', 'Dict
 
 
 def _cast_field_value(field: Var, field_value: Any):
-    if field_value is MISSING:
+    if field_value is MISSING or not field.init:
         return field_value
 
     if issubclass_safe(field.type_, Declared):

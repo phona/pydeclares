@@ -7,3 +7,5 @@ from pydeclares.variables import NamingStyle, var
 
 pascalcase_var = partial(var, naming_style=NamingStyle.pascalcase)
 camelcase_var = partial(var, naming_style=NamingStyle.camelcase)
+
+version = "0.6.1"

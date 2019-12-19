@@ -1,7 +1,8 @@
 import unittest
+from enum import Enum
 from datetime import datetime
 
-from pydeclares import var, Declared
+from pydeclares import var, Declared, GenericList
 
 
 class InnerJSONTestClass(Declared):
@@ -396,3 +397,29 @@ class SimpleDeclaredTestCase(unittest.TestCase):
 		self.assertNotEqual(json_obj_1, 1)
 		self.assertNotEqual(json_obj_1, json_obj_3)
 		self.assertEqual(json_obj_1, json_obj_2)
+
+
+class GenericListTestCase(unittest.TestCase):
+
+	def test_v1_int(self):
+
+		SupportPayTypes = GenericList(int)
+
+		class Product(Declared):
+			pay_types = var(SupportPayTypes)
+
+		product = Product(pay_types=SupportPayTypes([0, 1]))
+		print(product)
+
+	def test_v1_enum(self):
+		class PayType(Enum):
+			AliPay = 0
+			WechatPay = 1
+
+		SupportPayTypes = GenericList(PayType)
+
+		class Product(Declared):
+			pay_types = var(SupportPayTypes)
+
+		product = Product(pay_types=SupportPayTypes([PayType.AliPay]))
+		print(product)
