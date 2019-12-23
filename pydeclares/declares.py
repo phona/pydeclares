@@ -270,7 +270,7 @@ class Declared(metaclass=BaseDeclared):
                 new_attr = getattr(self, field.name, "")
                 if new_attr and new_attr is not MISSING:
                     try:
-                        attr = str(decode(field.type_, new_attr))
+                        attr = str(encode(new_attr))
                     except CodecNotFoundError:
                         attr = str(new_attr)
                     root.set(field.field_name, attr)
@@ -279,7 +279,7 @@ class Declared(metaclass=BaseDeclared):
                 text = getattr(self, field.name, "")
                 if text:
                     try:
-                        text = str(decode(field.type_, text))
+                        text = str(encode(text))
                     except CodecNotFoundError:
                         """"""
                 elif not skip_none_field:
@@ -301,7 +301,7 @@ class Declared(metaclass=BaseDeclared):
                 elem = ET.Element(field.field_name)
                 if field_value is not MISSING and field_value is not None:
                     try:
-                        text = str(decode(field.type_, field_value))
+                        text = str(encode(field_value))
                     except CodecNotFoundError:
                         text = str(field_value)
                     elem.text = text
@@ -575,14 +575,6 @@ def _encode_json_type(value, default=_ExtendedEncoder().default):
 def _encode_overrides(kvs, overrides, encode_json=False):
     override_kvs = {}
     for k, v in kvs.items():
-        # if k in overrides:
-        #     letter_case = overrides[k].letter_case
-        #     original_key = k
-        #     k = letter_case(k) if letter_case is not None else k
-
-        #     encoder = overrides[original_key].encoder
-        #     v = encoder(v) if encoder is not None else v
-
         if encode_json:
             v = _encode_json_type(v)
         override_kvs[k] = v

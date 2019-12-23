@@ -17,7 +17,10 @@ def encode(inst):
     except KeyError or AttributeError:
         for T in _CODECS.keys():
             if isinstance_safe(inst, T):
-                return _CODECS[T].encode(inst)
+                try:
+                    return _CODECS[T].encode(inst)
+                except AttributeError:
+                    pass
         else:
             raise CodecNotFoundError(f"Encoder of {type(inst)!r} is not found")
 
