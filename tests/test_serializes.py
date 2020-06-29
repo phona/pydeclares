@@ -10,7 +10,7 @@ class JSONSerializeTestCase(unittest.TestCase):
             name = var(str)
             age = var(int)
 
-        data = "{\"name\": \"Tom\", \"age\": 18}"
+        data = '{"name": "Tom", "age": 18}'
         person = Person.from_json(data)
         self.assertEqual(person.to_json(), data)
 
@@ -20,7 +20,7 @@ class JSONSerializeTestCase(unittest.TestCase):
             age = var(int)
 
         Persons = GenericList(Person)
-        data = "[{\"name\": \"Tom\", \"age\": 18}, {\"name\": \"Jack\", \"age\": 18}, {\"name\": \"Jerry\", \"age\": 18}]"
+        data = '[{"name": "Tom", "age": 18}, {"name": "Jack", "age": 18}, {"name": "Jerry", "age": 18}]'
         persons = Persons.from_json(data)
         self.assertEqual(persons.to_json(), data)
 
@@ -33,7 +33,7 @@ class JSONSerializeTestCase(unittest.TestCase):
             age = var(int)
             home = var(Home)
 
-        data = "{\"name\": \"Tom\", \"age\": 18, \"home\": {\"location\": \"England\"}}"
+        data = '{"name": "Tom", "age": 18, "home": {"location": "England"}}'
         person = Person.from_json(data)
         self.assertEqual(person.to_json(), data)
 
@@ -46,7 +46,7 @@ class JSONSerializeTestCase(unittest.TestCase):
             age = var(int)
             home = var(GenericList(Home))
 
-        data = "{\"name\": \"Tom\", \"age\": 18, \"home\": [{\"location\": \"England\"}, {\"location\": \"China\"}, {\"location\": \"America\"}]}"
+        data = '{"name": "Tom", "age": 18, "home": [{"location": "England"}, {"location": "China"}, {"location": "America"}]}'
         person = Person.from_json(data)
         self.assertEqual(person.to_json(), data)
 
@@ -63,7 +63,7 @@ class JSONSerializeTestCase(unittest.TestCase):
             age = var(int)
             home = var(Home)
 
-        data = "{\"name\": \"Tom\", \"age\": 18, \"home\": {\"location\": \"England\", \"furniture\": {\"name\": \"desk\"}}}"
+        data = '{"name": "Tom", "age": 18, "home": {"location": "England", "furniture": {"name": "desk"}}}'
         person = Person.from_json(data)
         self.assertEqual(person.to_json(), data)
 
@@ -80,7 +80,7 @@ class JSONSerializeTestCase(unittest.TestCase):
             age = var(int)
             home = var(GenericList(Home))
 
-        data = "{\"name\": \"Tom\", \"age\": 18, \"home\": [{\"location\": \"England\", \"furniture\": {\"name\": \"desk\"}}]}"
+        data = '{"name": "Tom", "age": 18, "home": [{"location": "England", "furniture": {"name": "desk"}}]}'
         person = Person.from_json(data)
         self.assertEqual(person.to_json(), data)
 
@@ -160,11 +160,11 @@ class XmlSerializeTestCase(unittest.TestCase):
         data = Data.from_xml_string(xml_string)
         self.assertEqual(
             data.to_xml_bytes(skip_none_field=True).decode(),
-            '<data><country name="Liechtenstein"><rank>1</rank><year>2008</year><gdppc>141100</gdppc><neighbor direction="E" name="Austria" /></country><country name="Singapore"><rank>4</rank><year>2011</year><gdppc>59900</gdppc><neighbor direction="N" name="Malaysia" /></country><country name="Panama"><rank>68</rank><year>2011</year><gdppc>13600</gdppc><neighbor direction="W" name="Costa Rica" /></country></data>'
+            '<data><country name="Liechtenstein"><rank>1</rank><year>2008</year><gdppc>141100</gdppc><neighbor direction="E" name="Austria" /></country><country name="Singapore"><rank>4</rank><year>2011</year><gdppc>59900</gdppc><neighbor direction="N" name="Malaysia" /></country><country name="Panama"><rank>68</rank><year>2011</year><gdppc>13600</gdppc><neighbor direction="W" name="Costa Rica" /></country></data>',
         )
         self.assertEqual(
             data.to_json(),
-            '[{"rank": "1", "year": 2008, "gdppc": 141100, "name": "Liechtenstein", "neighbor": {"name": "Austria", "direction": "E"}}, {"rank": "4", "year": 2011, "gdppc": 59900, "name": "Singapore", "neighbor": {"name": "Malaysia", "direction": "N"}}, {"rank": "68", "year": 2011, "gdppc": 13600, "name": "Panama", "neighbor": {"name": "Costa Rica", "direction": "W"}}]'
+            '[{"rank": "1", "year": 2008, "gdppc": 141100, "name": "Liechtenstein", "neighbor": {"name": "Austria", "direction": "E"}}, {"rank": "4", "year": 2011, "gdppc": 59900, "name": "Singapore", "neighbor": {"name": "Malaysia", "direction": "N"}}, {"rank": "68", "year": 2011, "gdppc": 13600, "name": "Panama", "neighbor": {"name": "Costa Rica", "direction": "W"}}]',
         )
 
     def test_other_simple_use(self):
@@ -206,11 +206,11 @@ class XmlSerializeTestCase(unittest.TestCase):
         data = Resource.from_xml_string(xml_string)
         self.assertEqual(
             data.to_xml_bytes(skip_none_field=True).decode(),
-            '<resources><style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar"><item name="colorPrimary">@color/colorPrimary</item><item name="colorPrimaryDark">@color/colorPrimaryDark</item><item name="colorAccent">@color/colorAccent</item></style><style name="AppTheme.NoActionBar"><item name="windowActionBar">false</item><item name="windowNoTitle">true</item></style><style name="AppTheme.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" /><style name="AppTheme.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" /><style name="ratingBarStyle" parent="@android:style/Widget.RatingBar"><item name="android:progressDrawable">@drawable/ratingbar_drawable</item><item name="android:minHeight">48dip</item><item name="android:maxHeight">48dip</item></style></resources>'
+            '<resources><style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar"><item name="colorPrimary">@color/colorPrimary</item><item name="colorPrimaryDark">@color/colorPrimaryDark</item><item name="colorAccent">@color/colorAccent</item></style><style name="AppTheme.NoActionBar"><item name="windowActionBar">false</item><item name="windowNoTitle">true</item></style><style name="AppTheme.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" /><style name="AppTheme.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" /><style name="ratingBarStyle" parent="@android:style/Widget.RatingBar"><item name="android:progressDrawable">@drawable/ratingbar_drawable</item><item name="android:minHeight">48dip</item><item name="android:maxHeight">48dip</item></style></resources>',
         )
         self.assertEqual(
             data.to_json(),
-            '[{"name": "AppTheme", "parent": "Theme.AppCompat.Light.DarkActionBar", "item": [{"name": "colorPrimary", "text": "@color/colorPrimary"}, {"name": "colorPrimaryDark", "text": "@color/colorPrimaryDark"}, {"name": "colorAccent", "text": "@color/colorAccent"}]}, {"name": "AppTheme.NoActionBar", "parent": null, "item": [{"name": "windowActionBar", "text": "false"}, {"name": "windowNoTitle", "text": "true"}]}, {"name": "AppTheme.AppBarOverlay", "parent": "ThemeOverlay.AppCompat.Dark.ActionBar", "item": []}, {"name": "AppTheme.PopupOverlay", "parent": "ThemeOverlay.AppCompat.Light", "item": []}, {"name": "ratingBarStyle", "parent": "@android:style/Widget.RatingBar", "item": [{"name": "android:progressDrawable", "text": "@drawable/ratingbar_drawable"}, {"name": "android:minHeight", "text": "48dip"}, {"name": "android:maxHeight", "text": "48dip"}]}]'
+            '[{"name": "AppTheme", "parent": "Theme.AppCompat.Light.DarkActionBar", "item": [{"name": "colorPrimary", "text": "@color/colorPrimary"}, {"name": "colorPrimaryDark", "text": "@color/colorPrimaryDark"}, {"name": "colorAccent", "text": "@color/colorAccent"}]}, {"name": "AppTheme.NoActionBar", "parent": null, "item": [{"name": "windowActionBar", "text": "false"}, {"name": "windowNoTitle", "text": "true"}]}, {"name": "AppTheme.AppBarOverlay", "parent": "ThemeOverlay.AppCompat.Dark.ActionBar", "item": []}, {"name": "AppTheme.PopupOverlay", "parent": "ThemeOverlay.AppCompat.Light", "item": []}, {"name": "ratingBarStyle", "parent": "@android:style/Widget.RatingBar", "item": [{"name": "android:progressDrawable", "text": "@drawable/ratingbar_drawable"}, {"name": "android:minHeight", "text": "48dip"}, {"name": "android:maxHeight", "text": "48dip"}]}]',
         )
 
     def test_declared_to_xml(self):
@@ -231,12 +231,17 @@ class XmlSerializeTestCase(unittest.TestCase):
         self.assertEqual(one_person.name, "John")
         self.assertEqual(one_person.valid, "true")
         self.assertEqual(one_person.age, 18)
-        self.assertEqual(one_person.to_xml_bytes().decode(),
-                         '<person valid="true"><name>John</name><age>18</age></person>')
-        self.assertEqual(one_person.to_json(), '{"valid": "true", "name": "John", "age": 18}')
+        self.assertEqual(
+            one_person.to_xml_bytes().decode(),
+            '<person valid="true"><name>John</name><age>18</age></person>',
+        )
+        self.assertEqual(
+            one_person.to_json(), '{"valid": "true", "name": "John", "age": 18}'
+        )
 
     def test_c2_xml(self):
-        xml_string = """
+        xml_string = (
+            """
         <ADI>
             <Objects>
                 <Object Action="REGIST" Code="PIC10100000140047ylxy" ElementType="Picture" ID="PIC10100000140047ylxy">
@@ -299,7 +304,10 @@ class XmlSerializeTestCase(unittest.TestCase):
                 <Mapping Action="REGIST" ElementCode="MOV10100000140047ylxy" ElementID="MOV10100000140047ylxy" ElementType="Movie" ParentCode="PRO10100000140047ylxy" ParentID="PRO10100000140047ylxy" ParentType="Program" />
             </Mappings>
         </ADI>
-        """.strip().replace("\n", "").replace("\t", "")
+        """.strip()
+            .replace("\n", "")
+            .replace("\t", "")
+        )
         pattern = re.compile(r">\s*<")
         xml_string = pattern.sub("><", xml_string)
 
@@ -349,7 +357,9 @@ class XmlSerializeTestCase(unittest.TestCase):
             mappings = pascalcase_var(Mappings)
 
         adi = ADI.from_xml_string(xml_string)
-        self.assertMultiLineEqual(adi.to_xml_bytes(encoding="utf-8").decode("utf-8"), xml_string)
+        self.assertMultiLineEqual(
+            adi.to_xml_bytes(encoding="utf-8").decode("utf-8"), xml_string
+        )
 
     def test_c2_xml_prettify(self):
         class VideoFormat(Declared):
@@ -390,7 +400,9 @@ class XmlSerializeTestCase(unittest.TestCase):
 </FileFormat>"""
 
         adi = FileFormat.from_xml_string(xml_string)
-        self.assertMultiLineEqual(adi.to_xml_bytes(encoding="utf8", indent=" " * 4).decode("utf8"), xml_string)
+        self.assertMultiLineEqual(
+            adi.to_xml_bytes(encoding="utf8", indent=" " * 4).decode("utf8"), xml_string
+        )
 
         xml_string = """<?xml version='1.0' encoding='utf8'?>
 <FileFormat>
@@ -410,7 +422,9 @@ class XmlSerializeTestCase(unittest.TestCase):
 </FileFormat>"""
 
         adi = FileFormat.from_xml_string(xml_string)
-        self.assertMultiLineEqual(adi.to_xml_bytes(encoding="utf8", indent=" " * 6).decode("utf8"), xml_string)
+        self.assertMultiLineEqual(
+            adi.to_xml_bytes(encoding="utf8", indent=" " * 6).decode("utf8"), xml_string
+        )
 
     def test_empty_node(self):
         xml_string = """
@@ -430,8 +444,18 @@ class XmlSerializeTestCase(unittest.TestCase):
         self.assertEqual(one_person.name, "John")
         self.assertEqual(one_person.valid, "true")
         self.assertIs(one_person.age, None)
-        self.assertEqual(one_person.to_xml_bytes().decode(), '<person valid="true"><name>John</name><age /></person>')
-        self.assertEqual(one_person.to_json(), '{"valid": "true", "name": "John", "age": null}')
         self.assertEqual(
-            one_person.to_xml_bytes(skip_none_field=True).decode(), '<person valid="true"><name>John</name></person>')
-        self.assertEqual(one_person.to_json(skip_none_field=True), '{"valid": "true", "name": "John"}')
+            one_person.to_xml_bytes().decode(),
+            '<person valid="true"><name>John</name><age /></person>',
+        )
+        self.assertEqual(
+            one_person.to_json(), '{"valid": "true", "name": "John", "age": null}'
+        )
+        self.assertEqual(
+            one_person.to_xml_bytes(skip_none_field=True).decode(),
+            '<person valid="true"><name>John</name></person>',
+        )
+        self.assertEqual(
+            one_person.to_json(skip_none_field=True),
+            '{"valid": "true", "name": "John"}',
+        )

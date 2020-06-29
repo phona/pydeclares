@@ -102,6 +102,7 @@ class Declared(metaclass=BaseDeclared):
             setattr(self, field.name, field_value)
 
         self.__post_init__(**omits)
+        self._is_empty = False
 
     def __post_init__(self, **omits):
         """"""
@@ -317,6 +318,17 @@ class Declared(metaclass=BaseDeclared):
 
     def to_xml_bytes(self, skip_none_field: bool = False, indent: str = None, **kwargs) -> bytes:
         return ET.tostring(self.to_xml(skip_none_field, indent), **kwargs)
+
+    @classmethod
+    def empty(cls):
+        inst = cls.__new__(cls)
+        for f in fields(cls):
+            setattr(inst, f.name, MISSING)
+        inst._is_empty = True
+        return inst
+
+    def __bool__(self):
+        return not self._is_empty
 
     def __str__(self):
         args = [f"{var.name}={str(getattr(self, var.name, 'missing'))}" for _, var in self.meta["vars"].items()]
