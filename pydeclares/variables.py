@@ -1,55 +1,99 @@
-import re
+from abc import abstractmethod
+from typing import (
+    Any,
+    Callable,
+    Generic,
+    Iterable,
+    List, Mapping,
+    Optional,
+    SupportsBytes,
+    SupportsComplex,
+    SupportsFloat,
+    SupportsInt,
+    Text,
+    Type,
+    TypeVar,
+    Union,
+    overload,
+)
 
-from pydeclares.defines import _REGISTER_DECLARED_CLASS, MISSING
-from pydeclares.utils import isinstance_safe
+from typing_extensions import Protocol, runtime_checkable
 
+from pydeclares import declares
+from pydeclares.utils import NamingStyle, isinstance_safe
 
-class NamingStyle:
-    """ reference to python-stringcase
-
-    https://github.com/okunishinishi/python-stringcase
-    """
-
-    @classmethod
-    def camelcase(cls, string):
-        string = re.sub(r"^[\-_\.]", '', str(string))
-        if not string:
-            return string
-        return string[0].lower() + re.sub(r"[\-_\.\s]([a-z])", lambda matched: (matched.group(1)).upper(), string[1:])
-
-    @classmethod
-    def snakecase(cls, string):
-        string = re.sub(r"[\-\.\s]", '_', str(string))
-        if not string:
-            return string
-        return string[0].lower() + re.sub(r"[A-Z]", lambda matched: '_' + (matched.group(0)).lower(), string[1:])
-
-    @classmethod
-    def pascalcase(cls, string):
-        string = cls.camelcase(string)
-        if not string:
-            return string
-        return string[0].upper() + string[1:]
+_T = TypeVar("_T", bound="Var[Any, Any]")
+_GT = TypeVar("_GT")
+_ST = TypeVar("_ST")
 
 
-class Var:
+class _UnicodeCodec(Generic[_GT], Protocol):
+    def encode(self, _: _GT):
+        ...
+
+    def decode(self, _: Text) -> _GT:
+        ...
+
+
+@runtime_checkable
+class _Castable(Generic[_GT], Protocol):
+    @abstractmethod
+    def cast(self) -> _GT:
+        ...
+
+
+class Var(Generic[_GT, _ST]):
     """ a represantation of declared class member varaiable
     recommend use var function to create Var object, don't use this construct directly
     """
 
-    def __init__(self,
-                 type_,
-                 required=True,
-                 field_name=MISSING,
-                 default=MISSING,
-                 default_factory=MISSING,
-                 ignore_serialize=False,
-                 naming_style=NamingStyle.snakecase,
-                 as_xml_attr=False,
-                 as_xml_text=False,
-                 auto_cast=True,
-                 init=True):
-        self._type = type_
+    def __init__(
+        self,
+        required: bool = True,
+        field_name: Optional[str] = None,
+        default: Optional[_GT] = None,
+        default_factory: Optional[Callable[..., _GT]] = None,
+        ignore_serialize: bool = False,
+        naming_style: Callable[[str], str] = NamingStyle.snakecase,
+        as_xml_attr: bool = False,
+        as_xml_text: bool = False,
+        init: bool = True,
+        unicode_codec: Optional[_UnicodeCodec[_GT]] = None,
+    ):
+        """ check input arguments and create a Var object
+
+        Usage:
+            >>> class NewClass(Declared):
+            >>>     new_field = var(int)
+            >>>     another_new_field = var(str, field_name="anf")
+
+        :param type_: a type object, or a str object that express one class of imported or declared in later,
+                    if use not declared or not imported class by string, a TypeError will occur in object
+                    construct or set attribute to those objects.
+
+        :param required: a bool object, constructor, this variable can't be missing in serialize when it is True.
+                        on the other hand, this variable will be set None as default if `required` is False.
+
+        :param field_name: a str object, use to serialize or deserialize custom field name.
+
+        :param default: a Type[A] object, raise AttributeError when this field leak user input value but
+                        this value is not instance of Type.
+
+        :param default_factory: a callable object that can return a Type[A] object, as same as default parameter
+                                but it is more flexible.
+
+        :param naming_style: a callable object, that can change naming style without redefined field name by `field_name` variable
+
+        :param as_xml_attr: a bool object, to declare one field as a xml attribute container
+
+        :param as_xml_text: a bool object, to declare one field as a xml text container
+
+        :param ignore_serialize: a bool object, if it is True then will omit in serialize.
+
+        :param init: a bool object, the parameter determines whether this variable will be initialize by default initializer.
+                    if it is False, then do not initialize with default initializer for this variable, and you must set attribute
+                    in other place otherwise there are AttributeError raised in serializing.
+        """
         self.name = ""
         self._field_name = field_name
         self.default = default
@@ -58,93 +102,195 @@ class Var:
         self.init = init
         self.ignore_serialize = ignore_serialize
         self.naming_style = naming_style
-        self.auto_cast = auto_cast
 
         self.as_xml_attr = as_xml_attr
         self.as_xml_text = as_xml_text
 
+        self.ucodec = unicode_codec
+
     @property
     def field_name(self):
         """ Cache handled field raw name """
-        if self._field_name is MISSING:
+        if self._field_name is None:
             self._field_name = self.naming_style(self.name)
         return self._field_name
 
-    @property
-    def type_(self):
-        if type(self._type) is str:
-            self._type = _REGISTER_DECLARED_CLASS[self._type]
-        return self._type
-
-    def make_default(self):
-        field_value = MISSING
-        if self.default is not MISSING:
+    def make_default(self) -> Optional[_GT]:
+        field_value = None
+        if self.default is not None:
             field_value = self.default
-        elif self.default_factory is not MISSING:
+        elif self.default_factory is not None:
             field_value = self.default_factory()
 
-        if self.check(field_value):
+        if field_value is None:
             return field_value
-        return MISSING
 
-    def check(self, obj):
-        if obj is MISSING or obj is None:
-            return True
-        type_ = self.type_
-        if getattr(type_, "__origin__", None):
-            type_ = type_.__origin__
+        if not isinstance_safe(field_value, self.type_):
+            return self.cast_it(field_value)
 
-        if not isinstance_safe(obj, type_):
-            raise TypeError("%r is not a instance of %r" % (type(obj).__name__, self.type_.__name__))
-        return True
+        return None
+
+    @property
+    @abstractmethod
+    def type_(self) -> Type[_GT]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def cast_it(self, obj: _ST) -> _GT:
+        raise NotImplementedError
+
+    @overload
+    def __get__(self, instance: "declares.Declared", owner: Any) -> _GT:
+        ...
+
+    @overload
+    def __get__(self: _T, instance: None, owner: Any) -> _T:
+        ...
+
+    @overload
+    def __get__(self: _T, instance: Any, owner: Any) -> _T:
+        ...
+
+    def __get__(self, instance: Any, owner: Any):
+        return getattr(instance, self.name)
+
+    def __set__(self, instance: Any, value: _ST) -> None:
+        if not isinstance(instance, self.type_):
+            instance = self.cast_it(instance)
+        setattr(instance, self.name, value)
 
 
-def var(type_,
-        required=True,
-        field_name=MISSING,
-        default=MISSING,
-        default_factory=MISSING,
-        ignore_serialize=False,
-        naming_style=NamingStyle.snakecase,
-        as_xml_attr=False,
-        as_xml_text=False,
-        auto_cast=True,
-        init=True):
-    """ check input arguments and create a Var object
+class Int(Var[int, SupportsInt]):
+    @property
+    def type_(self):
+        return int
 
-    Usage:
-        >>> class NewClass(Declared):
-        >>>     new_field = var(int)
-        >>>     another_new_field = var(str, field_name="anf")
+    def cast_it(self, obj: SupportsInt) -> int:
+        return int(obj)
 
-    :param type_: a type object, or a str object that express one class of imported or declared in later,
-                  if use not declared or not imported class by string, a TypeError will occur in object
-                  construct or set attribute to those objects.
 
-    :param required: a bool object, constructor, this variable can't be missing in serialize when it is True.
-                     on the other hand, this variable will be set None as default if `required` is False.
+class Float(Var[float, SupportsFloat]):
+    @property
+    def type_(self):
+        return float
 
-    :param field_name: a str object, use to serialize or deserialize custom field name.
+    def cast_it(self, obj: SupportsFloat) -> float:
+        return float(obj)
 
-    :param default: a Type[A] object, raise AttributeError when this field leak user input value but
-                    this value is not instance of Type.
 
-    :param default_factory: a callable object that can return a Type[A] object, as same as default parameter
-                            but it is more flexible.
+class Complex(Var[complex, SupportsComplex]):
+    @property
+    def type_(self):
+        return complex
 
-    :param naming_style: a callable object, that can change naming style without redefined field name by `field_name` variable
+    def cast_it(self, obj: SupportsComplex) -> complex:
+        return complex(obj)
 
-    :param as_xml_attr: a bool object, to declare one field as a xml attribute container
 
-    :param as_xml_text: a bool object, to declare one field as a xml text container
+class Bytes(Var[bytes, SupportsBytes]):
+    @property
+    def type_(self):
+        return bytes
 
-    :param ignore_serialize: a bool object, if it is True then will omit in serialize.
+    def cast_it(self, obj: SupportsBytes) -> bytes:
+        return bytes(obj)
 
-    :param init: a bool object, the parameter determines whether this variable will be initialize by default initializer.
-                 if it is False, then do not initialize with default initializer for this variable, and you must set attribute
-                 in other place otherwise there are AttributeError raised in serializing.
-    """
-    if default is not MISSING and default_factory is not MISSING:
-        raise ValueError('cannot specify both default and default_factory')
-    return Var(type_, required, field_name, default, default_factory, ignore_serialize, naming_style, as_xml_attr,
-               as_xml_text, auto_cast, init)
+
+class SupportsStr(Protocol):
+    def __str__(self) -> Text:
+        ...
+
+
+class String(Var[str, SupportsStr]):
+    @property
+    def type_(self):
+        return str
+
+    def cast_it(self, obj: SupportsStr) -> Text:
+        return str(obj)
+
+
+class var(Var[_GT, _Castable[_GT]]):
+    @overload
+    def __init__(
+        self,
+        type_: Type[_GT],
+        required: bool = ...,
+        field_name: Optional[str] = ...,
+        default: Optional[_GT] = ...,
+        default_factory: Optional[Callable[..., _GT]] = ...,
+        ignore_serialize: bool = ...,
+        naming_style: Callable[[str], str] = ...,
+        as_xml_attr: bool = ...,
+        as_xml_text: bool = ...,
+        init: bool = ...,
+        unicode_codec: Optional[_UnicodeCodec[_GT]] = ...,
+    ):
+        ...
+
+    def __init__(self, type_: Type[_GT], *args: Any, **kwargs: Any):
+        self._type = type_
+        super().__init__(*args, **kwargs)
+
+    @property
+    def type_(self):
+        return self._type
+
+    def cast_it(self, obj: _Castable[_GT]) -> _GT:
+        try:
+            return obj.cast()
+        except AttributeError:
+            raise TypeError(f"{obj.__class__} has not implemented protocol _Castable")
+
+
+class _DeferedVar(Var[_GT, _ST]):
+    @overload
+    def __init__(
+        self,
+        type_: Type[_GT],
+        required: bool = ...,
+        field_name: Optional[str] = ...,
+        default: Optional[_GT] = ...,
+        default_factory: Optional[Callable[..., _GT]] = ...,
+        ignore_serialize: bool = ...,
+        naming_style: Callable[[str], str] = ...,
+        as_xml_attr: bool = ...,
+        as_xml_text: bool = ...,
+        init: bool = ...,
+        unicode_codec: Optional[_UnicodeCodec[_GT]] = ...,
+    ):
+        ...
+
+    def __init__(self, type_: Type[_GT], *args: Any, **kwargs: Any):
+        self._type = type_
+        super().__init__(*args, **kwargs)
+
+
+_K = TypeVar("_K")
+_V = TypeVar("_V")
+
+
+class kv(_DeferedVar[Mapping[_K, _V], _Castable[Mapping[_K, _V]]]):
+    @property
+    def type_(self) -> Type[Mapping[_K, _V]]:
+        return Mapping  # type: ignore
+
+    def cast_it(self, obj: _Castable[Mapping[_K, _V]]) -> Mapping[_K, _V]:
+        try:
+            return obj.cast()
+        except AttributeError:
+            raise TypeError(f"{obj.__class__} has not implemented protocol _Castable")
+
+
+class vec(_DeferedVar[List[_GT], _Castable[Iterable[_GT]]]):
+    @property
+    def type_(self) -> Type[List[_GT]]:
+        return List  # type: ignore
+
+    def cast_it(self, obj: _Castable[Iterable[_GT]]) -> List[_GT]:
+        try:
+            return list(obj.cast())
+        except AttributeError:
+            raise TypeError(
+                f"{obj.__class__} has not implemented protocol _Castable"
+            )
