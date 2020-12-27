@@ -7,3 +7,4 @@ build
 *venv
 PyDeclares.egg-info
 dist
+Pipfile.lock

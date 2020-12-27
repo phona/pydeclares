@@ -2,9 +2,11 @@ from abc import abstractmethod
 from typing import (
     Any,
     Callable,
+    Dict,
     Generic,
     Iterable,
-    List, Mapping,
+    List,
+    Mapping,
     Optional,
     SupportsBytes,
     SupportsComplex,
@@ -43,7 +45,7 @@ class _Castable(Generic[_GT], Protocol):
 
 
 class Var(Generic[_GT, _ST]):
-    """ a represantation of declared class member varaiable
+    """a represantation of declared class member varaiable
     recommend use var function to create Var object, don't use this construct directly
     """
 
@@ -60,7 +62,7 @@ class Var(Generic[_GT, _ST]):
         init: bool = True,
         unicode_codec: Optional[_UnicodeCodec[_GT]] = None,
     ):
-        """ check input arguments and create a Var object
+        """check input arguments and create a Var object
 
         Usage:
             >>> class NewClass(Declared):
@@ -135,6 +137,11 @@ class Var(Generic[_GT, _ST]):
     def type_(self) -> Type[_GT]:
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def construct(self) -> Callable[..., _GT]:
+        raise NotImplementedError
+
     @abstractmethod
     def cast_it(self, obj: _ST) -> _GT:
         raise NotImplementedError
@@ -165,6 +172,10 @@ class Int(Var[int, SupportsInt]):
     def type_(self):
         return int
 
+    @property
+    def construct(self):
+        return int
+
     def cast_it(self, obj: SupportsInt) -> int:
         return int(obj)
 
@@ -172,6 +183,10 @@ class Int(Var[int, SupportsInt]):
 class Float(Var[float, SupportsFloat]):
     @property
     def type_(self):
+        return float
+
+    @property
+    def construct(self):
         return float
 
     def cast_it(self, obj: SupportsFloat) -> float:
@@ -183,6 +198,10 @@ class Complex(Var[complex, SupportsComplex]):
     def type_(self):
         return complex
 
+    @property
+    def construct(self):
+        return complex
+
     def cast_it(self, obj: SupportsComplex) -> complex:
         return complex(obj)
 
@@ -190,6 +209,10 @@ class Complex(Var[complex, SupportsComplex]):
 class Bytes(Var[bytes, SupportsBytes]):
     @property
     def type_(self):
+        return bytes
+
+    @property
+    def construct(self):
         return bytes
 
     def cast_it(self, obj: SupportsBytes) -> bytes:
@@ -204,6 +227,10 @@ class SupportsStr(Protocol):
 class String(Var[str, SupportsStr]):
     @property
     def type_(self):
+        return str
+
+    @property
+    def construct(self):
         return str
 
     def cast_it(self, obj: SupportsStr) -> Text:
@@ -234,6 +261,10 @@ class var(Var[_GT, _Castable[_GT]]):
 
     @property
     def type_(self):
+        return self._type
+
+    @property
+    def construct(self):
         return self._type
 
     def cast_it(self, obj: _Castable[_GT]) -> _GT:
@@ -275,6 +306,10 @@ class kv(_DeferedVar[Mapping[_K, _V], _Castable[Mapping[_K, _V]]]):
     def type_(self) -> Type[Mapping[_K, _V]]:
         return Mapping  # type: ignore
 
+    @property
+    def construct(self) -> Type[Dict[_K, _V]]:
+        return dict  # type: ignore
+
     def cast_it(self, obj: _Castable[Mapping[_K, _V]]) -> Mapping[_K, _V]:
         try:
             return obj.cast()
@@ -287,10 +322,37 @@ class vec(_DeferedVar[List[_GT], _Castable[Iterable[_GT]]]):
     def type_(self) -> Type[List[_GT]]:
         return List  # type: ignore
 
+    @property
+    def construct(self) -> Type[List[_GT]]:
+        return list  # type: ignore
+
     def cast_it(self, obj: _Castable[Iterable[_GT]]) -> List[_GT]:
         try:
             return list(obj.cast())
         except AttributeError:
-            raise TypeError(
-                f"{obj.__class__} has not implemented protocol _Castable"
-            )
+            raise TypeError(f"{obj.__class__} has not implemented protocol _Castable")
+
+
+@overload
+def compatible_var(
+    type_: Union[Type[_GT], "declares.GenericList[_GT]"],
+    required: bool = ...,
+    field_name: Optional[str] = ...,
+    default: Optional[_GT] = ...,
+    default_factory: Optional[Callable[..., _GT]] = ...,
+    ignore_serialize: bool = ...,
+    naming_style: Callable[[str], str] = ...,
+    as_xml_attr: bool = ...,
+    as_xml_text: bool = ...,
+    init: bool = ...,
+    unicode_codec: Optional[_UnicodeCodec[_GT]] = ...,
+) -> Var[_GT, _Castable[_GT]]:
+    ...
+
+
+def compatible_var(
+    type_: Union[Type[_T], "declares.GenericList[_T]"], *args: Any, **kwargs: Any
+) -> Var[_GT, _ST]:
+    if issubclass(type_, declares.GenericList):  # type: ignore
+        return vec(type_.__type__, *args, **kwargs)  # type: ignore
+    return var(type_, *args, **kwargs)  # type: ignore

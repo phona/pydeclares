@@ -1,6 +1,6 @@
 import inspect
 import re
-from typing import Iterable
+from typing import Any, Iterable, Type
 from xml.etree.ElementTree import Element
 
 
@@ -16,7 +16,7 @@ def tuple_str(obj_name: str, fields: Iterable[str]):
     return f'({",".join([f"{obj_name}.{f.name}" for f in fields])},)'
 
 
-def isinstance_safe(o, t):
+def isinstance_safe(o: Any, t: Type):
     try:
         result = isinstance(o, t)
     except Exception:

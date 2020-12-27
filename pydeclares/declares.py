@@ -309,7 +309,7 @@ class Declared(metaclass=BaseDeclared):
                 field_value = element.get(field.field_name, MISSING)
             elif field.as_xml_text:
                 field_value = element.text
-            elif issubclass_safe(field.type_, GenericList):
+            elif issubclass_safe(field.type_, List):
                 subs = element.findall(field.field_name)
                 field_value = field.type_.from_xml_list(subs, element.tag)
             elif issubclass_safe(field.type_, Declared):
