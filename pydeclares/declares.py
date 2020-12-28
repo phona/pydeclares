@@ -1,7 +1,6 @@
 from functools import lru_cache
 import json
 import re
-from unittest.signals import installHandler
 import urllib.parse as urlparse
 from collections import UserList
 from decimal import Decimal
@@ -120,6 +119,9 @@ class Declared(metaclass=BaseDeclared):
                         f"field {field.name!r} is required. if you doesn't want to init this variable in initializer, "
                         f"please set `init` argument to False for this variable."
                     )
+
+            if not isinstance(field_value, field.type_):
+                field_value = field.cast_it(field_value)
             setattr(self, field.name, field_value)
 
         self.__post_init__(**omits)
@@ -432,7 +434,7 @@ class Declared(metaclass=BaseDeclared):
         return hash(tuple(str(getattr(self, f.name)) for f in fields(self)))
 
 
-class GenericList(UserList[_T]):
+class GenericList(List[_T], UserList):  # type: ignore
     """ represant a series of vars
 
     >>> class NewType(Declared):
@@ -596,7 +598,7 @@ class _ExtendedEncoder(json.JSONEncoder):
 
 
 @lru_cache()
-def new_list_type(type_: Type[_T]) -> Type[GenericList[_T]]:
+def new_list_type(type_: Type[_T]) -> "Type[GenericList[_T]]":
     return type(
         f"GenericList<{type_.__name__}>", (GenericList[_T],), {"__type__": type_}
     )

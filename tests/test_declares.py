@@ -1,3 +1,4 @@
+from pydeclares.variables import vec
 import unittest
 from enum import Enum
 from datetime import datetime
@@ -480,3 +481,32 @@ class GenericListTestCase(unittest.TestCase):
 
         product = Product(pay_types=SupportPayTypes([PayType.AliPay]))
         self.assertEqual(product.pay_types, [PayType.AliPay])
+
+
+def test_declared_dict_v1():
+    class Struct(Declared):
+        p0 = var(int)
+        p1 = var(str)
+
+    s = Struct.from_dict({"p0": 1, "p1": "1"})
+    assert s.p0 == 1
+    assert s.p1 == "1"
+
+    assert s.to_dict() == {"p0": 1, "p1": "1"}
+
+
+def test_declared_dict_v1_castable_type():
+    class Struct(Declared):
+        p0 = var(int)
+        p1 = var(str)
+
+    s = Struct.from_dict({"p0": "1", "p1": 1})
+    assert s.to_dict() == {"p0": 1, "p1": "1"}
+
+
+def test_declared_dict_v2():
+    class Struct(Declared):
+        p0 = vec(int)
+
+    s = Struct.from_dict({"p0": [1, 2, 3]})
+    assert s.p0 == [1, 2, 3]

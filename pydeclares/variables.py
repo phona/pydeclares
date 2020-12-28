@@ -16,13 +16,15 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    no_type_check,
+    no_type_check_decorator,
     overload,
 )
 
 from typing_extensions import Protocol, runtime_checkable
 
 from pydeclares import declares
-from pydeclares.utils import NamingStyle, isinstance_safe
+from pydeclares.utils import NamingStyle, isinstance_safe, issubclass_safe
 
 _T = TypeVar("_T", bound="Var[Any, Any]")
 _GT = TypeVar("_GT")
@@ -161,10 +163,10 @@ class Var(Generic[_GT, _ST]):
     def __get__(self, instance: Any, owner: Any):
         return getattr(instance, self.name)
 
-    def __set__(self, instance: Any, value: _ST) -> None:
-        if not isinstance(instance, self.type_):
-            instance = self.cast_it(instance)
-        setattr(instance, self.name, value)
+    # def __set__(self, instance: Any, value: _ST) -> None:
+    #     if not isinstance(instance, self.type_):
+    #         instance = self.cast_it(instance)
+    #     setattr(instance, self.name, value)
 
 
 class Int(Var[int, SupportsInt]):
@@ -274,7 +276,50 @@ class var(Var[_GT, _Castable[_GT]]):
             raise TypeError(f"{obj.__class__} has not implemented protocol _Castable")
 
 
-class _DeferedVar(Var[_GT, _ST]):
+_K = TypeVar("_K")
+_V = TypeVar("_V")
+
+
+class kv(Var[Mapping[_K, _V], _Castable[Mapping[_K, _V]]]):
+    @overload
+    def __init__(
+        self,
+        k_type: Type[_K],
+        v_type: Type[_V],
+        required: bool = ...,
+        field_name: Optional[str] = ...,
+        default: Optional[_GT] = ...,
+        default_factory: Optional[Callable[..., _GT]] = ...,
+        ignore_serialize: bool = ...,
+        naming_style: Callable[[str], str] = ...,
+        as_xml_attr: bool = ...,
+        as_xml_text: bool = ...,
+        init: bool = ...,
+        unicode_codec: Optional[_UnicodeCodec[_GT]] = ...,
+    ):
+        ...
+
+    def __init__(self, k_type: Type[_K], v_type: Type[_V], *args: Any, **kwargs: Any):
+        self.k_type = k_type
+        self.v_type = v_type
+        super().__init__(*args, **kwargs)
+
+    @property
+    def type_(self) -> Type[Mapping[_K, _V]]:
+        return Mapping  # type: ignore
+
+    @property
+    def construct(self) -> Type[Dict[_K, _V]]:
+        return dict  # type: ignore
+
+    def cast_it(self, obj: _Castable[Mapping[_K, _V]]) -> Mapping[_K, _V]:
+        try:
+            return obj.cast()
+        except AttributeError:
+            raise TypeError(f"{obj.__class__} has not implemented protocol _Castable")
+
+
+class vec(Var[List[_GT], _Castable[Iterable[_GT]]]):
     @overload
     def __init__(
         self,
@@ -296,28 +341,6 @@ class _DeferedVar(Var[_GT, _ST]):
         self._type = type_
         super().__init__(*args, **kwargs)
 
-
-_K = TypeVar("_K")
-_V = TypeVar("_V")
-
-
-class kv(_DeferedVar[Mapping[_K, _V], _Castable[Mapping[_K, _V]]]):
-    @property
-    def type_(self) -> Type[Mapping[_K, _V]]:
-        return Mapping  # type: ignore
-
-    @property
-    def construct(self) -> Type[Dict[_K, _V]]:
-        return dict  # type: ignore
-
-    def cast_it(self, obj: _Castable[Mapping[_K, _V]]) -> Mapping[_K, _V]:
-        try:
-            return obj.cast()
-        except AttributeError:
-            raise TypeError(f"{obj.__class__} has not implemented protocol _Castable")
-
-
-class vec(_DeferedVar[List[_GT], _Castable[Iterable[_GT]]]):
     @property
     def type_(self) -> Type[List[_GT]]:
         return List  # type: ignore
@@ -335,7 +358,7 @@ class vec(_DeferedVar[List[_GT], _Castable[Iterable[_GT]]]):
 
 @overload
 def compatible_var(
-    type_: Union[Type[_GT], "declares.GenericList[_GT]"],
+    type_: Union[Type[_GT]],
     required: bool = ...,
     field_name: Optional[str] = ...,
     default: Optional[_GT] = ...,
@@ -350,9 +373,18 @@ def compatible_var(
     ...
 
 
-def compatible_var(
-    type_: Union[Type[_T], "declares.GenericList[_T]"], *args: Any, **kwargs: Any
-) -> Var[_GT, _ST]:
-    if issubclass(type_, declares.GenericList):  # type: ignore
-        return vec(type_.__type__, *args, **kwargs)  # type: ignore
-    return var(type_, *args, **kwargs)  # type: ignore
+def compatible_var(type_: Type[Any], *args: Any, **kwargs: Any) -> Var[Any, Any]:
+    if issubclass_safe(type_, List) or issubclass_safe(type_, declares.GenericList):  # type: ignore
+        return vec(type_.__type__, *args, **kwargs)
+    elif type_ is int:
+        return Int(*args, **kwargs)
+    elif type_ is str:
+        return String(*args, **kwargs)
+    elif type_ is float:
+        return Float(*args, **kwargs)
+    elif type_ is complex:
+        return Complex(*args, **kwargs)
+    elif type_ is bytes:
+        return Bytes(*args, **kwargs)
+
+    return var(type_, *args, **kwargs)
