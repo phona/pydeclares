@@ -510,3 +510,14 @@ def test_declared_dict_v2():
 
     s = Struct.from_dict({"p0": [1, 2, 3]})
     assert s.p0 == [1, 2, 3]
+
+
+def test_declared_dict_v2_castable_type():
+    class Struct(Declared):
+        p0 = vec(int)
+
+    s = Struct.from_dict({"p0": [1, 2, 3]})
+    assert s.p0 == [1, 2, 3]
+
+    s = Struct.from_dict({"p0": ["1", "2", "3"]})
+    assert s.p0 == [1, 2, 3]

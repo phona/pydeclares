@@ -1,7 +1,30 @@
 import inspect
 import re
-from typing import Any, Iterable, Type
+from typing import Any, Callable, Generic, Iterable, Type, TypeVar
 from xml.etree.ElementTree import Element
+
+
+_T = TypeVar("_T")
+
+
+class Strategy(Generic[_T]):
+    def __init__(self, func: Callable[..., _T]):
+        self.func = func
+
+    def match_type(self, typ: Type) -> Callable[..., _T]:
+        ...
+
+    def match_interface(self, inf: Type) -> Callable[..., _T]:
+        ...
+
+
+def strategy(func: Callable[..., _T]) -> Strategy[_T]:
+    ...
+
+
+@strategy
+def test():
+    return 1
 
 
 def tuple_str(obj_name: str, fields: Iterable[str]):

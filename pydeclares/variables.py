@@ -15,9 +15,6 @@ from typing import (
     Text,
     Type,
     TypeVar,
-    Union,
-    no_type_check,
-    no_type_check_decorator,
     overload,
 )
 
@@ -32,15 +29,23 @@ _ST = TypeVar("_ST")
 
 
 class _UnicodeCodec(Generic[_GT], Protocol):
-    def encode(self, _: _GT):
+    def encode(self, _: _GT) -> Text:
         ...
 
     def decode(self, _: Text) -> _GT:
         ...
 
 
+class _Codec(Protocol[_GT, _ST]):
+    def encode(self, _: _GT) -> _ST:
+        ...
+
+    def decode(self, _: _ST) -> _GT:
+        ...
+
+
 @runtime_checkable
-class _Castable(Generic[_GT], Protocol):
+class Castable(Generic[_GT], Protocol):
     @abstractmethod
     def cast(self) -> _GT:
         ...
@@ -62,7 +67,7 @@ class Var(Generic[_GT, _ST]):
         as_xml_attr: bool = False,
         as_xml_text: bool = False,
         init: bool = True,
-        unicode_codec: Optional[_UnicodeCodec[_GT]] = None,
+        custom_codec: Optional[_Codec[_GT, _ST]] = None,
     ):
         """check input arguments and create a Var object
 
@@ -110,7 +115,7 @@ class Var(Generic[_GT, _ST]):
         self.as_xml_attr = as_xml_attr
         self.as_xml_text = as_xml_text
 
-        self.ucodec = unicode_codec
+        self.codec = custom_codec
 
     @property
     def field_name(self):
@@ -148,6 +153,9 @@ class Var(Generic[_GT, _ST]):
     def cast_it(self, obj: _ST) -> _GT:
         raise NotImplementedError
 
+    def type_checking(self, obj: Any) -> bool:
+        return isinstance_safe(obj, self.type_)
+
     @overload
     def __get__(self, instance: "declares.Declared", owner: Any) -> _GT:
         ...
@@ -167,6 +175,9 @@ class Var(Generic[_GT, _ST]):
     #     if not isinstance(instance, self.type_):
     #         instance = self.cast_it(instance)
     #     setattr(instance, self.name, value)
+
+    def __str__(self):
+        return f"{self.__class__.__name__}<{self.type_.__name__}>"
 
 
 class Int(Var[int, SupportsInt]):
@@ -239,7 +250,7 @@ class String(Var[str, SupportsStr]):
         return str(obj)
 
 
-class var(Var[_GT, _Castable[_GT]]):
+class var(Var[_GT, Castable[_GT]]):
     @overload
     def __init__(
         self,
@@ -269,7 +280,7 @@ class var(Var[_GT, _Castable[_GT]]):
     def construct(self):
         return self._type
 
-    def cast_it(self, obj: _Castable[_GT]) -> _GT:
+    def cast_it(self, obj: Castable[_GT]) -> _GT:
         try:
             return obj.cast()
         except AttributeError:
@@ -280,7 +291,7 @@ _K = TypeVar("_K")
 _V = TypeVar("_V")
 
 
-class kv(Var[Mapping[_K, _V], _Castable[Mapping[_K, _V]]]):
+class kv(Var[Mapping[_K, _V], Castable[Mapping[_K, _V]]]):
     @overload
     def __init__(
         self,
@@ -299,27 +310,33 @@ class kv(Var[Mapping[_K, _V], _Castable[Mapping[_K, _V]]]):
     ):
         ...
 
-    def __init__(self, k_type: Type[_K], v_type: Type[_V], *args: Any, **kwargs: Any):
+    def __init__(
+        self,
+        k_type: Type[_K],
+        v_type: Type[_V],
+        *args: Any,
+        **kwargs: Any,
+    ):
         self.k_type = k_type
         self.v_type = v_type
         super().__init__(*args, **kwargs)
 
     @property
     def type_(self) -> Type[Mapping[_K, _V]]:
-        return Mapping  # type: ignore
+        return Dict  # type: ignore
 
     @property
     def construct(self) -> Type[Dict[_K, _V]]:
         return dict  # type: ignore
 
-    def cast_it(self, obj: _Castable[Mapping[_K, _V]]) -> Mapping[_K, _V]:
+    def cast_it(self, obj: Castable[Mapping[_K, _V]]) -> Mapping[_K, _V]:
         try:
             return obj.cast()
         except AttributeError:
             raise TypeError(f"{obj.__class__} has not implemented protocol _Castable")
 
 
-class vec(Var[List[_GT], _Castable[Iterable[_GT]]]):
+class vec(Var[List[_GT], Castable[Iterable[_GT]]]):
     @overload
     def __init__(
         self,
@@ -337,8 +354,13 @@ class vec(Var[List[_GT], _Castable[Iterable[_GT]]]):
     ):
         ...
 
-    def __init__(self, type_: Type[_GT], *args: Any, **kwargs: Any):
-        self._type = type_
+    def __init__(
+        self,
+        type_: Type[_GT],
+        *args: Any,
+        **kwargs: Any,
+    ):
+        self.item_type = type_
         super().__init__(*args, **kwargs)
 
     @property
@@ -349,7 +371,7 @@ class vec(Var[List[_GT], _Castable[Iterable[_GT]]]):
     def construct(self) -> Type[List[_GT]]:
         return list  # type: ignore
 
-    def cast_it(self, obj: _Castable[Iterable[_GT]]) -> List[_GT]:
+    def cast_it(self, obj: Castable[Iterable[_GT]]) -> List[_GT]:
         try:
             return list(obj.cast())
         except AttributeError:
@@ -358,7 +380,7 @@ class vec(Var[List[_GT], _Castable[Iterable[_GT]]]):
 
 @overload
 def compatible_var(
-    type_: Union[Type[_GT]],
+    type_: Type[_GT],
     required: bool = ...,
     field_name: Optional[str] = ...,
     default: Optional[_GT] = ...,
@@ -369,13 +391,18 @@ def compatible_var(
     as_xml_text: bool = ...,
     init: bool = ...,
     unicode_codec: Optional[_UnicodeCodec[_GT]] = ...,
-) -> Var[_GT, _Castable[_GT]]:
+) -> Var[_GT, Castable[_GT]]:
     ...
 
 
 def compatible_var(type_: Type[Any], *args: Any, **kwargs: Any) -> Var[Any, Any]:
-    if issubclass_safe(type_, List) or issubclass_safe(type_, declares.GenericList):  # type: ignore
-        return vec(type_.__type__, *args, **kwargs)
+    if issubclass_safe(type_, List):
+        if issubclass_safe(type_, declares.GenericList):  # type: ignore
+            return vec(type_.__type__, *args, **kwargs)
+        else:
+            return vec(object, *args, **kwargs)
+    elif issubclass_safe(type_, Dict):
+        return kv(object, object, *args, **kwargs)
     elif type_ is int:
         return Int(*args, **kwargs)
     elif type_ is str:

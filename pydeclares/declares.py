@@ -120,7 +120,7 @@ class Declared(metaclass=BaseDeclared):
                         f"please set `init` argument to False for this variable."
                     )
 
-            if not isinstance(field_value, field.type_):
+            if not field.type_checking(field_value):
                 field_value = field.cast_it(field_value)
             setattr(self, field.name, field_value)
 

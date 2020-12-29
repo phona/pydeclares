@@ -1,11 +1,21 @@
 import re
-from typing import Any, Callable, Collection, Optional, Tuple, Type, TypeVar, Union
+from typing import (
+    Any,
+    Callable,
+    Collection, Dict,
+    Generic, List,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 from typing_extensions import Protocol
 from xml.etree import ElementTree as ET
 
 _T = TypeVar("_T")
 _Self = TypeVar("_Self", bound="Serializable")
-Json = Union[dict, list, str, int, float, bool, None]
+Json = Union[Dict[str, "Json"], List["Json"], str, int, float, bool, None]
 JsonData = Union[str, bytes, bytearray]
 
 
@@ -55,6 +65,21 @@ class Serializable(Protocol):
 
     def to_collection(self) -> Collection[_T]:
         ...
+
+
+class Option(Generic[_T]):
+    def __init__(self, val: Union[_T, "_MISSING_TYPE"]) -> None:
+        self.val = val
+
+    def __or__(self, other: _T):
+        if self.val is MISSING or isinstance(self.val, _MISSING_TYPE):
+            return other
+        return self.val
+
+    def take(self) -> _T:
+        if self.val is MISSING or isinstance(self.val, _MISSING_TYPE):
+            raise ValueError("can't take missing value")
+        return self.val
 
 
 class _MISSING_TYPE:
