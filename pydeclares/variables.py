@@ -28,14 +28,6 @@ _GT = TypeVar("_GT")
 _ST = TypeVar("_ST")
 
 
-class _UnicodeCodec(Generic[_GT], Protocol):
-    def encode(self, _: _GT) -> Text:
-        ...
-
-    def decode(self, _: Text) -> _GT:
-        ...
-
-
 class _Codec(Protocol[_GT, _ST]):
     def encode(self, _: _GT) -> _ST:
         ...
@@ -264,7 +256,7 @@ class var(Var[_GT, Castable[_GT]]):
         as_xml_attr: bool = ...,
         as_xml_text: bool = ...,
         init: bool = ...,
-        unicode_codec: Optional[_UnicodeCodec[_GT]] = ...,
+        custom_codec: Optional[_Codec[_GT, _ST]] = ...,
     ):
         ...
 
@@ -306,7 +298,7 @@ class kv(Var[Mapping[_K, _V], Castable[Mapping[_K, _V]]]):
         as_xml_attr: bool = ...,
         as_xml_text: bool = ...,
         init: bool = ...,
-        unicode_codec: Optional[_UnicodeCodec[_GT]] = ...,
+        custom_codec: Optional[_Codec[_GT, _ST]] = ...,
     ):
         ...
 
@@ -350,7 +342,7 @@ class vec(Var[List[_GT], Castable[Iterable[_GT]]]):
         as_xml_attr: bool = ...,
         as_xml_text: bool = ...,
         init: bool = ...,
-        unicode_codec: Optional[_UnicodeCodec[_GT]] = ...,
+        custom_codec: Optional[_Codec[_GT, _ST]] = ...,
     ):
         ...
 
@@ -390,7 +382,7 @@ def compatible_var(
     as_xml_attr: bool = ...,
     as_xml_text: bool = ...,
     init: bool = ...,
-    unicode_codec: Optional[_UnicodeCodec[_GT]] = ...,
+    custom_codec: Optional[_Codec[_GT, _ST]] = ...,
 ) -> Var[_GT, Castable[_GT]]:
     ...
 

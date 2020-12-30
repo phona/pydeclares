@@ -417,7 +417,7 @@ class Declared(metaclass=BaseDeclared):
             f"{field_name}={str(getattr(self, field_name, 'missing'))}"
             for field_name in self.fields
         ]
-        return f"{self.__class__.__name__}({','.join(args)})"
+        return f"{self.__class__.__name__}({', '.join(args)})"
 
     def __eq__(self, other: "Declared"):
         if other.__class__ != self.__class__:
