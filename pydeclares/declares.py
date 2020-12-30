@@ -608,6 +608,7 @@ def _is_declared_instance(obj: object) -> bool:
     return isinstance_safe(obj, Declared)
 
 
+@lru_cache()
 def fields(class_or_instance: Union[Type, object]) -> Tuple[Var[Any, Any]]:
     """Return a tuple describing the fields of this declared class.
     Accepts a declared class or an instance of one. Tuple elements are of
