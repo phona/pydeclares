@@ -1,7 +1,9 @@
 import re
 import unittest
+from xml.etree import ElementTree as ET
 
-from pydeclares import Declared, GenericList, pascalcase_var, var
+from pydeclares import Declared, vec, pascalcase_var, var
+from pydeclares.marshals import json, xml
 
 
 class JSONSerializeTestCase(unittest.TestCase):
@@ -19,10 +21,10 @@ class JSONSerializeTestCase(unittest.TestCase):
             name = var(str)
             age = var(int)
 
-        Persons = GenericList(Person)
+        Persons = vec(Person)
         data = '[{"name": "Tom", "age": 18}, {"name": "Jack", "age": 18}, {"name": "Jerry", "age": 18}]'
-        persons = Persons.from_json(data)
-        self.assertEqual(persons.to_json(), data)
+        persons = json.unmarshal(Persons, data)
+        self.assertEqual(json.marshal(persons), data)
 
     def test_struct_inner_contain(self):
         class Home(Declared):
@@ -44,7 +46,7 @@ class JSONSerializeTestCase(unittest.TestCase):
         class Person(Declared):
             name = var(str)
             age = var(int)
-            home = var(GenericList(Home))
+            home = vec(Home)
 
         data = '{"name": "Tom", "age": 18, "home": [{"location": "England"}, {"location": "China"}, {"location": "America"}]}'
         person = Person.from_json(data)
@@ -78,7 +80,7 @@ class JSONSerializeTestCase(unittest.TestCase):
         class Person(Declared):
             name = var(str)
             age = var(int)
-            home = var(GenericList(Home))
+            home = vec(Home)
 
         data = '{"name": "Tom", "age": 18, "home": [{"location": "England", "furniture": {"name": "desk"}}]}'
         person = Person.from_json(data)
@@ -156,14 +158,16 @@ class XmlSerializeTestCase(unittest.TestCase):
             name = var(str, as_xml_attr=True)
             neighbor = var(Neighbor)
 
-        Data = GenericList(Country)
-        data = Data.from_xml_string(xml_string)
+        Data = vec(Country)
+        data = xml.unmarshal(Data, ET.XML(xml_string))
         self.assertEqual(
-            data.to_xml_bytes(skip_none_field=True).decode(),
+            ET.tostring(xml.marshal(data, xml.Options(True))).decode(),
             '<data><country name="Liechtenstein"><rank>1</rank><year>2008</year><gdppc>141100</gdppc><neighbor direction="E" name="Austria" /></country><country name="Singapore"><rank>4</rank><year>2011</year><gdppc>59900</gdppc><neighbor direction="N" name="Malaysia" /></country><country name="Panama"><rank>68</rank><year>2011</year><gdppc>13600</gdppc><neighbor direction="W" name="Costa Rica" /></country></data>',
         )
+        v = json.Vec(data.vec)
+        v.extend(data)
         self.assertEqual(
-            data.to_json(),
+            json.marshal(v),
             '[{"rank": "1", "year": 2008, "gdppc": 141100, "name": "Liechtenstein", "neighbor": {"name": "Austria", "direction": "E"}}, {"rank": "4", "year": 2011, "gdppc": 59900, "name": "Singapore", "neighbor": {"name": "Malaysia", "direction": "N"}}, {"rank": "68", "year": 2011, "gdppc": 13600, "name": "Panama", "neighbor": {"name": "Costa Rica", "direction": "W"}}]',
         )
 
@@ -200,16 +204,18 @@ class XmlSerializeTestCase(unittest.TestCase):
         class Style(Declared):
             name = var(str, as_xml_attr=True)
             parent = var(str, as_xml_attr=True, default=None)
-            items = var(GenericList(Item), field_name="item")
+            items = vec(Item, field_name="item")
 
-        Resource = GenericList(Style)
-        data = Resource.from_xml_string(xml_string)
+        Resource = vec(Style)
+        data = xml.unmarshal(Resource, ET.XML(xml_string))
         self.assertEqual(
-            data.to_xml_bytes(skip_none_field=True).decode(),
+            ET.tostring(xml.marshal(data, xml.Options(True))).decode(),
             '<resources><style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar"><item name="colorPrimary">@color/colorPrimary</item><item name="colorPrimaryDark">@color/colorPrimaryDark</item><item name="colorAccent">@color/colorAccent</item></style><style name="AppTheme.NoActionBar"><item name="windowActionBar">false</item><item name="windowNoTitle">true</item></style><style name="AppTheme.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" /><style name="AppTheme.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" /><style name="ratingBarStyle" parent="@android:style/Widget.RatingBar"><item name="android:progressDrawable">@drawable/ratingbar_drawable</item><item name="android:minHeight">48dip</item><item name="android:maxHeight">48dip</item></style></resources>',
         )
+        v = json.Vec(data.vec)
+        v.extend(data)
         self.assertEqual(
-            data.to_json(),
+            json.marshal(v),
             '[{"name": "AppTheme", "parent": "Theme.AppCompat.Light.DarkActionBar", "item": [{"name": "colorPrimary", "text": "@color/colorPrimary"}, {"name": "colorPrimaryDark", "text": "@color/colorPrimaryDark"}, {"name": "colorAccent", "text": "@color/colorAccent"}]}, {"name": "AppTheme.NoActionBar", "parent": null, "item": [{"name": "windowActionBar", "text": "false"}, {"name": "windowNoTitle", "text": "true"}]}, {"name": "AppTheme.AppBarOverlay", "parent": "ThemeOverlay.AppCompat.Dark.ActionBar", "item": []}, {"name": "AppTheme.PopupOverlay", "parent": "ThemeOverlay.AppCompat.Light", "item": []}, {"name": "ratingBarStyle", "parent": "@android:style/Widget.RatingBar", "item": [{"name": "android:progressDrawable", "text": "@drawable/ratingbar_drawable"}, {"name": "android:minHeight", "text": "48dip"}, {"name": "android:maxHeight", "text": "48dip"}]}]',
         )
 
@@ -325,7 +331,7 @@ class XmlSerializeTestCase(unittest.TestCase):
             id_ = var(str, field_name="ID", as_xml_attr=True)
             element_type = pascalcase_var(str, as_xml_attr=True)
 
-            properties = var(GenericList(Property), field_name="Property")
+            properties = vec(Property, field_name="Property")
 
         class Mapping(Declared):
             __xml_tag_name__ = "Mapping"
@@ -338,17 +344,17 @@ class XmlSerializeTestCase(unittest.TestCase):
             parent_id = var(str, as_xml_attr=True, field_name="ParentID")
             action = pascalcase_var(str, as_xml_attr=True)
 
-            properties = var(GenericList(Property), field_name="Property")
+            properties = vec(Property, field_name="Property")
 
         class Objects(Declared):
             __xml_tag_name__ = "Objects"
 
-            object_ = var(GenericList(Object), field_name="Object")
+            object_ = vec(Object, field_name="Object")
 
         class Mappings(Declared):
             __xml_tag_name__ = "Mappings"
 
-            mapping = var(GenericList(Mapping), field_name="Mapping")
+            mapping = vec(Mapping, field_name="Mapping")
 
         class ADI(Declared):
             __xml_tag_name__ = "ADI"

@@ -2,8 +2,8 @@ from functools import partial
 
 from pydeclares.codecs import as_codec
 from pydeclares.declares import Declared
-from pydeclares.declares import new_list_type as GenericList
-from pydeclares.variables import NamingStyle, compatible_var
+from pydeclares.variables import NamingStyle, compatible_var, vec
+
 
 var = compatible_var
 pascalcase_var = partial(var, naming_style=NamingStyle.pascalcase)

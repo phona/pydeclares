@@ -15,6 +15,7 @@ from typing import (
     Text,
     Type,
     TypeVar,
+    Union,
     overload,
 )
 
@@ -163,6 +164,9 @@ class Var(Generic[_GT, _ST]):
     def __get__(self, instance: Any, owner: Any):
         return getattr(instance, self.name)
 
+    def __set__(self, instance: "declares.Declared", value: _ST):
+        setattr(instance, self.name, value)
+
     # def __set__(self, instance: Any, value: _ST) -> None:
     #     if not isinstance(instance, self.type_):
     #         instance = self.cast_it(instance)
@@ -242,7 +246,7 @@ class String(Var[str, SupportsStr]):
         return str(obj)
 
 
-class var(Var[_GT, Castable[_GT]]):
+class var(Var[_GT, Union[Castable[_GT], _GT]]):
     @overload
     def __init__(
         self,
@@ -272,11 +276,14 @@ class var(Var[_GT, Castable[_GT]]):
     def construct(self):
         return self._type
 
-    def cast_it(self, obj: Castable[_GT]) -> _GT:
+    def cast_it(self, obj: Union[Castable[_GT], _GT]) -> _GT:
+        if isinstance(obj, self._type):
+            return obj  # type: ignore
+
         try:
-            return obj.cast()
+            return obj.cast()  # type: ignore
         except AttributeError:
-            raise TypeError(f"{obj.__class__} has not implemented protocol _Castable")
+            raise TypeError(f"{obj.__class__} has not implemented protocol _Castable")  # type: ignore
 
 
 _K = TypeVar("_K")
@@ -383,12 +390,16 @@ def compatible_var(
     as_xml_text: bool = ...,
     init: bool = ...,
     custom_codec: Optional[_Codec[_GT, _ST]] = ...,
-) -> Var[_GT, Castable[_GT]]:
+) -> Var[_GT, Union[Castable[_GT], _GT]]:
     ...
 
 
-def compatible_var(type_: Type[Any], *args: Any, **kwargs: Any) -> Var[Any, Any]:
-    if issubclass_safe(type_, List):
+def compatible_var(
+    type_: Union[Type[Any], vec[Any]], *args: Any, **kwargs: Any
+) -> Var[Any, Any]:
+    if isinstance(type_, vec):
+        return type_
+    elif issubclass_safe(type_, List):
         if issubclass_safe(type_, declares.GenericList):  # type: ignore
             return vec(type_.__type__, *args, **kwargs)
         else:

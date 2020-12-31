@@ -1,20 +1,14 @@
-from pydeclares.variables import vec
 import unittest
-from enum import Enum
 from datetime import datetime
+from enum import Enum
 
-from pydeclares import var, Declared, GenericList, camelcase_var
+from pydeclares import Declared, NamingStyle, var, vec
+from pydeclares.variables import vec
 
 
 class InnerJSONTestClass(Declared):
     ia = var(int)
     ib = var(int)
-
-
-class CombineJSONTestClass(Declared):
-    a = var(int)
-    b = var(str)
-    json = var("JSONTestClass")
 
 
 class JSONTestClass(Declared):
@@ -25,6 +19,12 @@ class JSONTestClass(Declared):
     e = var(bool)
     f = var(list)
     g = var(dict)
+
+
+class CombineJSONTestClass(Declared):
+    a = var(int)
+    b = var(str)
+    json = var(JSONTestClass)
 
 
 class InheritedJSONTestClass(JSONTestClass, InnerJSONTestClass):
@@ -451,12 +451,11 @@ class SimpleDeclaredTestCase(unittest.TestCase):
 
 class GenericListTestCase(unittest.TestCase):
     def test_v1_int(self):
-        SupportPayTypes = GenericList(int)
 
         class Product(Declared):
-            pay_types = var(SupportPayTypes)
+            pay_types = vec(int)
 
-        product = Product(pay_types=SupportPayTypes([0, 1]))
+        product = Product(pay_types=[0, 1])
         self.assertEqual(product.pay_types, [0, 1], product.pay_types)
 
         product = Product.from_dict({"pay_types": [0, 1]})
@@ -464,7 +463,7 @@ class GenericListTestCase(unittest.TestCase):
 
     def test_v2_int(self):
         class Test(Declared):
-            picture_navi_ids = camelcase_var(GenericList(int))
+            picture_navi_ids = vec(int, naming_style=NamingStyle.camelcase)
 
         test = Test.from_dict({"pictureNaviIds": [0, 1]})
         self.assertEqual(test.picture_navi_ids, [0, 1])
@@ -474,12 +473,10 @@ class GenericListTestCase(unittest.TestCase):
             AliPay = 0
             WechatPay = 1
 
-        SupportPayTypes = GenericList(PayType)
-
         class Product(Declared):
-            pay_types = var(SupportPayTypes)
+            pay_types = vec(PayType)
 
-        product = Product(pay_types=SupportPayTypes([PayType.AliPay]))
+        product = Product(pay_types=[PayType.AliPay])
         self.assertEqual(product.pay_types, [PayType.AliPay])
 
 

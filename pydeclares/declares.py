@@ -1,57 +1,38 @@
-from functools import lru_cache
-import json
-import re
 import urllib.parse as urlparse
-from collections import UserList
-from decimal import Decimal
 from json.decoder import JSONDecoder
+from json.encoder import JSONEncoder
 from typing import (
     Any,
     AnyStr,
     Callable,
     ClassVar,
-    Collection,
-    Dict, Iterable,
+    Dict,
     List,
-    Mapping,
     Optional,
     Tuple,
     Type,
     TypeVar,
     Union,
+    overload,
 )
 from xml.etree import ElementTree as ET
 
 from pydeclares import variables
 from pydeclares import variables as vars
 from pydeclares.codecs import CodecNotFoundError, encode
-from pydeclares.defines import MISSING, Json, JsonData
-from pydeclares.utils import isinstance_safe, issubclass_safe, xml_prettify
+from pydeclares.defines import MISSING, JsonData
+from pydeclares.marshals import json, xml
+from pydeclares.utils import isinstance_safe
 
 Var = variables.Var
-CDATA_PATTERN = re.compile(r"<!\[CDATA\[(.*?)\]\]>")
 
 _T = TypeVar("_T")
 _DT = TypeVar("_DT", bound="Declared")
 
 
-def custom_escape_cdata(text: str) -> str:
-    if not isinstance_safe(text, str):
-        text = str(text)
-
-    if CDATA_PATTERN.match(text):
-        return text
-    return ET_escape_cdata(text)
-
-
-ET_escape_cdata = ET._escape_cdata
-ET._escape_cdata = custom_escape_cdata
-
-
 class BaseDeclared(type):
-    def __new__(
-        cls, name: str, bases: Tuple[type, ...], namespace: Dict[str, Any]
-    ) -> "BaseDeclared":
+    def __new__(cls, name, bases, namespace):
+        # type: (str, Tuple[type, ...], Dict[str, Any]) -> BaseDeclared
         if name == "Declared":
             return super(BaseDeclared, cls).__new__(cls, name, bases, namespace)
 
@@ -87,7 +68,7 @@ class BaseDeclared(type):
 
 
 class Declared(metaclass=BaseDeclared):
-    """ declared a serialize object make data class more clearly and flexible, provide
+    """declared a serialize object make data class more clearly and flexible, provide
     default serialize function and well behavior hash, str and eq.
     fields can use None object represent null or empty situation, otherwise those fields
     must be provided unless set it required as False.
@@ -97,7 +78,8 @@ class Declared(metaclass=BaseDeclared):
     fields: ClassVar[Tuple[str]]
     meta: ClassVar[Dict[str, "vars.Var[Any, Any]"]]
 
-    def __init__(self, *args: Any, **kwargs: Any):
+    def __init__(self, *args, **kwargs):
+        # type: (Any, Any) -> None
         kwargs.update(dict(zip(self.fields, args)))
         fs = fields(self)
         omits = {}
@@ -136,63 +118,16 @@ class Declared(metaclass=BaseDeclared):
         if _has_nest_declared_class is None:
             result = False
             for field in fields(cls):
-                if _is_declared_instance(field.type_):
+                if isinstance_safe(field.type_, Declared):
                     result = True
                     break
             setattr(cls, "_has_nest_declared_class", result)
         else:
             return _has_nest_declared_class
 
-    def to_json(
-        self,
-        skipkeys: bool = False,
-        ensure_ascii: bool = True,
-        check_circular: bool = True,
-        allow_nan: bool = True,
-        indent: Union[None, int, str] = None,
-        separators: Optional[Tuple[str, str]] = None,
-        default: Optional[Callable[[Any], Json]] = None,
-        sort_keys: bool = False,
-        skip_none_field: bool = False,
-        **kw: Any,
-    ):
-        return json.dumps(
-            self.to_dict(encode_json=False, skip_none_field=skip_none_field),
-            cls=_ExtendedEncoder,
-            skipkeys=skipkeys,
-            ensure_ascii=ensure_ascii,
-            check_circular=check_circular,
-            allow_nan=allow_nan,
-            indent=indent,
-            separators=separators,
-            default=default,
-            sort_keys=sort_keys,
-            **kw,
-        )
-
     @classmethod
-    def from_json(
-        cls: Type["Declared"],
-        s: JsonData,
-        *,
-        encoding: Optional[Type[JSONDecoder]] = None,
-        parse_float: Optional[Callable[[str], Any]] = None,
-        parse_int: Optional[Callable[[str], Any]] = None,
-        parse_constant: Optional[Callable[[str], Any]] = None,
-        **kw: Any,
-    ):
-        kvs = json.loads(
-            s,
-            encoding=encoding,
-            parse_float=parse_float,
-            parse_int=parse_int,
-            parse_constant=parse_constant,
-            **kw,
-        )
-        return cls.from_dict(kvs)
-
-    @classmethod
-    def from_dict(cls: Type[_DT], kvs: Dict[str, Any]) -> _DT:
+    def from_dict(cls, kvs):
+        # type: (Type[_DT], Dict[str, Any]) -> _DT
         init_kwargs = {}
         for field in fields(cls):
             try:
@@ -209,9 +144,8 @@ class Declared(metaclass=BaseDeclared):
 
         return cls(**init_kwargs)
 
-    def to_dict(
-        self, encode_json: bool = False, skip_none_field: bool = False
-    ) -> Dict[str, Any]:
+    def to_dict(self, skip_none_field=False):
+        # type: (bool) -> Dict[str, Any]
         result = []
         field: Var[Any, Any]
         for field in fields(self):
@@ -231,20 +165,24 @@ class Declared(metaclass=BaseDeclared):
                 continue
 
             if isinstance_safe(field_value, Declared):
-                field_value = self.to_dict(encode_json, skip_none_field,)
+                field_value = self.to_dict(skip_none_field)
 
             result.append((field.field_name, field_value))
 
-        return _encode_overrides(dict(result), encode_json)
+        return dict(result)
 
     @classmethod
-    def from_form_data(cls: Type["Declared"], form_data: str):
+    def from_form_data(cls, form_data):
+        # type: (Type[_DT], str) -> _DT
         if cls.has_nest_declared_class():
             raise ValueError("can't deserialize to nested declared class.")
 
-        return cls.from_dict(dict(urlparse.parse_qsl(form_data)))
+        cls.from_form_data
 
-    def to_form_data(self, skip_none_field: bool = False):
+        return cls.from_dict(dict(urlparse.parse_qsl(form_data)))  # type: ignore
+
+    def to_form_data(self, skip_none_field=False):
+        # type: (bool) -> str
         if self.has_nest_declared_class():
             raise ValueError("can't serialize with nested declared class.")
 
@@ -258,11 +196,12 @@ class Declared(metaclass=BaseDeclared):
         return "&".join([f"{k}={v}" for k, v in data.items()])
 
     @classmethod
-    def from_query_string(cls: Type["Declared"], query_string: str):
+    def from_query_string(cls, query_string):
+        # type: (Type[_DT], str) -> _DT
         if cls.has_nest_declared_class():
             raise ValueError("can't deserialize to nested declared class.")
 
-        return cls.from_dict(dict(urlparse.parse_qsl(query_string)))
+        return cls.from_dict(dict(urlparse.parse_qsl(query_string)))  # type: ignore
 
     def to_query_string(
         self,
@@ -292,8 +231,49 @@ class Declared(metaclass=BaseDeclared):
             quote_via=quote_via,
         )
 
+    @overload
+    def to_json(
+        self,
+        skipkeys: bool = ...,
+        ensure_ascii: bool = ...,
+        check_circular: bool = ...,
+        allow_nan: bool = ...,
+        cls: Optional[Type[JSONEncoder]] = ...,
+        indent: Union[None, int, str] = ...,
+        separators: Optional[Tuple[str, str]] = ...,
+        default: Optional[Callable[[Any], Any]] = ...,
+        sort_keys: bool = ...,
+        skip_none_field: bool = ...,
+        **kwds: Any,
+    ) -> str:
+        ...
+
+    def to_json(self, skip_none_field=False, **kw):
+        # type: (bool, Any) -> "str"
+        return json.marshal(self, json.Options(skip_none_field, json_loads=kw))
+
+    @overload
     @classmethod
-    def from_xml(cls: Type["Declared"], element: ET.Element) -> "Declared":
+    def from_json(
+        cls_: Type[_DT],  # type: ignore
+        s: JsonData,
+        *,
+        cls: Optional[Type[JSONDecoder]] = ...,
+        object_hook: Optional[Callable[[Dict[Any, Any]], Any]] = ...,
+        parse_float: Optional[Callable[[str], Any]] = ...,
+        parse_int: Optional[Callable[[str], Any]] = ...,
+        parse_constant: Optional[Callable[[str], Any]] = ...,
+        object_pairs_hook: Optional[Callable[[List[Tuple[Any, Any]]], Any]] = ...,
+        **kwds: Any,
+    ) -> _DT:
+        ...
+
+    @classmethod
+    def from_json(cls: Type[_DT], s: JsonData, **kw: Any) -> _DT:
+        return json.unmarshal(cls, s, json.Options(json_dumps=kw))
+
+    @classmethod
+    def from_xml(cls: Type[_DT], element: ET.Element) -> _DT:
         """
         >>> class Struct(Declared):
         >>>     tag = var(str)
@@ -305,101 +285,25 @@ class Declared(metaclass=BaseDeclared):
         >>>     style = var(str)
         >>>     ......
         """
-        init_kwargs: Dict[str, Any] = {}
-        for field in fields(cls):
-            if field.as_xml_attr:
-                field_value = element.get(field.field_name, MISSING)
-            elif field.as_xml_text:
-                field_value = element.text
-            elif issubclass_safe(field.type_, List):
-                subs = element.findall(field.field_name)
-                field_value = field.type_.from_xml_list(subs, element.tag)
-            elif issubclass_safe(field.type_, Declared):
-                sub = element.find(field.field_name)
-                if sub is None:
-                    sub = MISSING
-                field_value = field.type_.from_xml(sub)
-            else:
-                field_value = getattr(element.find(field.field_name), "text", MISSING)
-
-            init_kwargs[field.name] = field.cast_it(field_value)
-
-        return cls(**init_kwargs)
+        return xml.unmarshal(cls, element, xml.Options())
 
     @classmethod
-    def from_xml_string(cls: Type["Declared"], xml_string: str) -> "Declared":
-        return cls.from_xml(ET.XML(xml_string))
+    def from_xml_string(cls: Type[_DT], xml_string: str) -> _DT:
+        return cls.from_xml(ET.XML(xml_string))  # type: ignore
 
-    def to_xml(
-        self, skip_none_field: bool = False, indent: Optional[str] = None
-    ) -> ET.Element:
+    def to_xml(self, skip_none_field=False, indent=None):
+        # type: (bool, Optional[str]) -> ET.Element
         """
         <?xml version="1.0"?>
         <tag id="`id`" style="`style`">
             `text`
         </tag>
         """
-        tag = (
-            self.__xml_tag_name__
-            if self.__xml_tag_name__
-            else self.__class__.__name__.lower()
-        )
-        root = ET.Element(tag)
-        for field in fields(self):
-            if field.as_xml_attr:
-                # handle attributes
-                new_attr = getattr(self, field.name, "")
-                if new_attr and new_attr is not MISSING:
-                    try:
-                        attr = str(encode(new_attr))
-                    except CodecNotFoundError:
-                        attr = str(new_attr)
-                    root.set(field.field_name, attr)
-            elif field.as_xml_text:
-                # handle has multiple attributes and text element, like <country size="large">Panama</country>
-                text = getattr(self, field.name, "")
-                if text:
-                    try:
-                        text = str(encode(text))
-                    except CodecNotFoundError:
-                        """"""
-                elif not skip_none_field:
-                    text = ""
-                root.text = text
-            elif issubclass_safe(field.type_, GenericList):
-                # handle a series of struct or native type data
-                field_value = getattr(self, field.name, MISSING)
-                if field_value is not MISSING:
-                    root.extend(field_value.to_xml(skip_none_field))
-            elif issubclass_safe(field.type_, Declared):
-                # handle complex struct data
-                field_value = getattr(self, field.name, MISSING)
-                if field_value is not MISSING:
-                    root.append(field_value.to_xml(skip_none_field))
-            else:
-                # handle simple node just like <name>John</name>
-                field_value = getattr(self, field.name, MISSING)
-                elem = ET.Element(field.field_name)
-                if field_value is not MISSING and field_value is not None:
-                    try:
-                        text = str(encode(field_value))
-                    except CodecNotFoundError:
-                        text = str(field_value)
-                    elem.text = text
-                    root.append(elem)
-                elif not skip_none_field:
-                    elem.text = ""
-                    root.append(elem)
+        return xml.marshal(self, xml.Options(skip_none_field, indent))
 
-        if indent is not None:
-            xml_prettify(root, indent, "\n")
-
-        return root
-
-    def to_xml_bytes(
-        self, skip_none_field: bool = False, indent: Optional[str] = None, **kwargs: Any
-    ) -> bytes:
-        return ET.tostring(self.to_xml(skip_none_field, indent), **kwargs)
+    def to_xml_bytes(self, skip_none_field=False, indent=None, **kw) -> bytes:
+        # type: (bool, Optional[str], Any) -> bytes
+        return ET.tostring(self.to_xml(skip_none_field, indent), **kw)
 
     @classmethod
     def empty(cls):
@@ -434,182 +338,7 @@ class Declared(metaclass=BaseDeclared):
         return hash(tuple(str(getattr(self, f.name)) for f in fields(self)))
 
 
-class GenericList(List[_T], UserList):  # type: ignore
-    """ represant a series of vars
-
-    >>> class NewType(Declared):
-    >>>     items = var(new_list_type(str))
-
-    >>> result = NewType.from_json("{\"items\": [\"1\", \"2\"]}")
-    >>> result.to_json() #  {\"items\": [\"1\", \"2\"]}
-
-    or used directly
-
-    >>> strings = new_list_type(str)
-    >>> result = strings.from_json("[\"1\", \"2\"]")
-    >>> result.to_json() #  "[\"1\", \"2\"]"
-    """
-
-    __type__: ClassVar[Type[_T]]
-
-    def __init__(self, initlist: Iterable[_T] = [], tag: Optional[str] = None):
-        if self.__type__ is None:
-            raise TypeError(
-                f"Type {self.__class__.__name__} cannot be intialize directly; please use new_list_type instead"
-            )
-
-        if isinstance_safe(self.__type__, Declared):
-            super().__init__((self.__type__.from_dict(i) for i in initlist))  # type: ignore
-        else:
-            super().__init__(initlist)
-        # type checked
-        for item in self.data:
-            if not isinstance_safe(item, self.__type__):
-                raise TypeError(
-                    f"Type of instance {str(item)} is {type(item)}, but not {self.__type__}."
-                )
-        self.tag = tag
-
-    @classmethod
-    def from_json(
-        cls: Type["GenericList[_T]"],
-        s: JsonData,
-        *,
-        parse_float: Optional[Callable[[str], Any]] = None,
-        parse_int: Optional[Callable[[str], Any]] = None,
-        parse_constant: Optional[Callable[[str], Any]] = None,
-        **kw: Any,
-    ) -> "GenericList[_T]":
-        kvs = json.loads(
-            s,
-            parse_float=parse_float,
-            parse_int=parse_int,
-            parse_constant=parse_constant,
-            **kw,
-        )
-        assert isinstance(kvs, List)
-        return cls(kvs)  # type: ignore
-
-    def to_json(
-        self,
-        skipkeys: bool = False,
-        ensure_ascii: bool = True,
-        check_circular: bool = True,
-        allow_nan: bool = True,
-        indent: Optional[Union[int, str]] = None,
-        separators: Optional[Tuple[str, str]] = None,
-        default: Optional[Callable[[Any], Json]] = None,
-        sort_keys: bool = False,
-        skip_none_field: bool = False,
-        **kw: Any,
-    ) -> str:
-        li: List[Json]
-        if issubclass_safe(self.__type__, Declared):
-            li = [
-                inst.to_dict(encode_json=False, skip_none_field=skip_none_field)  # type: ignore
-                for inst in self.data
-            ]
-        else:
-            li = [_encode_json_type(inst) for inst in self.data]
-
-        return json.dumps(
-            li,
-            cls=_ExtendedEncoder,
-            skipkeys=skipkeys,
-            ensure_ascii=ensure_ascii,
-            check_circular=check_circular,
-            allow_nan=allow_nan,
-            indent=indent,
-            separators=separators,
-            default=default,
-            sort_keys=sort_keys,
-            **kw,
-        )
-
-    @classmethod
-    def from_xml(
-        cls: "Type[GenericList[_T]]", element: ET.Element
-    ) -> "GenericList[_T]":
-        if issubclass(cls.__type__, Declared):
-            t: Type[Declared] = cls.__type__
-            return cls((t.from_xml(sub) for sub in element), tag=element.tag)
-        return None
-
-    @classmethod
-    def from_xml_list(
-        cls: Type["GenericList[_T]"], elements: List[ET.Element], tag: str
-    ) -> "GenericList[_T]":
-        if issubclass(cls.__type__, Declared):
-            t: Type[Declared] = cls.__type__
-            return cls((t.from_xml(sub) for sub in elements), tag=tag)
-        return cls((sub for sub in elements), tag=tag)
-
-    @classmethod
-    def from_xml_string(
-        cls: "Type[GenericList[_T]]", xml_string: str
-    ) -> "GenericList[_T]":
-        return cls.from_xml(ET.XML(xml_string))
-
-    def to_xml(
-        self,
-        tag: Optional[str] = None,
-        skip_none_field: bool = False,
-        indent: Optional[str] = None,
-    ) -> ET.Element:
-        if tag is None:
-            tag = self.tag
-        root = ET.Element(tag)
-        for item in self:
-            root.append(item.to_xml(skip_none_field=skip_none_field))
-
-        if indent is not None:
-            xml_prettify(root, indent, "\n")
-
-        return root
-
-    def to_xml_bytes(
-        self,
-        tag: Optional[str] = None,
-        skip_none_field: bool = False,
-        indent: Optional[str] = None,
-        **kwargs: Any,
-    ) -> bytes:
-        return ET.tostring(self.to_xml(tag, skip_none_field, indent), **kwargs)
-
-    def __str__(self):
-        return f"{self.__class__.__name__}({', '.join(str(i) for i in self)})"
-
-
-class _ExtendedEncoder(json.JSONEncoder):
-    def default(self, o: Any) -> Json:
-        if isinstance_safe(o, Collection):
-            if isinstance_safe(o, Mapping):
-                result = dict(o)
-            else:
-                result = list(o)
-        elif isinstance_safe(o, Decimal):
-            result = str(o)
-        else:
-            try:
-                result = encode(o)
-            except CodecNotFoundError:
-                result = json.JSONEncoder.default(self, o)
-        return result
-
-
-@lru_cache()
-def new_list_type(type_: Type[_T]) -> "Type[GenericList[_T]]":
-    return type(
-        f"GenericList<{type_.__name__}>", (GenericList[_T],), {"__type__": type_}
-    )
-
-
-def _is_declared_instance(obj: object) -> bool:
-    return isinstance_safe(obj, Declared)
-
-
-@lru_cache()
-def fields(class_or_instance: Union[Type, object]) -> Tuple[Var[Any, Any]]:
+def fields(class_or_instance: Union[Type[_DT], _DT]) -> Tuple[Var[Any, Any]]:
     """Return a tuple describing the fields of this declared class.
     Accepts a declared class or an instance of one. Tuple elements are of
     type Field.
@@ -630,20 +359,3 @@ def fields(class_or_instance: Union[Type, object]) -> Tuple[Var[Any, Any]]:
         if var:
             out.append(var)
     return tuple(out)
-
-
-def _encode_json_type(
-    value: Any, default: Callable[[Any], Json] = _ExtendedEncoder().default
-) -> Json:
-    if isinstance(value, Json.__args__):  # type: ignore
-        return value
-    return default(value)
-
-
-def _encode_overrides(kvs: Dict[Any, Any], encode_json: bool = False) -> Dict[Any, Any]:
-    override_kvs = {}
-    for k, v in kvs.items():
-        if encode_json:
-            v = _encode_json_type(v)
-        override_kvs[k] = v
-    return override_kvs

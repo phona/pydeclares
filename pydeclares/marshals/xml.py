@@ -25,7 +25,7 @@ class Vec(Generic[_T], UserList):
         )
         self.data = []
 
-    def unmarshal(self, options):
+    def marshal(self, options):
         # type: (Options) -> ET.Element
         root = ET.Element(self.tag)
         root.extend(marshal(item, options) for item in self)
@@ -51,19 +51,22 @@ class Options:
         self.indent = indent
 
 
+_default_options = Options()
+
+
 @overload
-def unmarshal(marshalable, elem, options):
+def unmarshal(marshalable, elem, options=...):
     # type: (Type[_DT], ET.Element, Options) -> _DT
     ...
 
 
 @overload
-def unmarshal(marshalable, elem, options):
+def unmarshal(marshalable, elem, options=...):
     # type: (variables.vec[_T], ET.Element, Options) -> Vec[_T]
     ...
 
 
-def unmarshal(marshalable, elem, options):
+def unmarshal(marshalable, elem, options=_default_options):
     # type: (Union[variables.vec, Type[declares.Declared]], ET.Element, Options) -> Union[Vec, declares.Declared]
     if isinstance(marshalable, variables.vec):
         assert marshalable.field_name
@@ -103,7 +106,7 @@ def _unmarshal_declared(typ, elem, options):
     return typ(**init_kwargs)
 
 
-def marshal(marshalable_or_declared, options):
+def marshal(marshalable_or_declared, options=_default_options):
     # type: (Union[_Marshalable, declares.Declared], Options) -> ET.Element
     if isinstance(marshalable_or_declared, declares.Declared):
         return _marshal_declared(marshalable_or_declared, options)

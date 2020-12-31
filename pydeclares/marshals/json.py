@@ -1,6 +1,6 @@
 import json
 from collections import UserDict, UserList
-from typing import Dict, Generic, List, Type, TypeVar, Union, overload
+from typing import Dict, Generic, List, Optional, Type, TypeVar, Union, overload
 
 from pydeclares import declares, variables
 from pydeclares.defines import MISSING, Json, JsonData
@@ -36,7 +36,8 @@ class Vec(Generic[_T], UserList):
 
     def marshal(self, options: "Options") -> str:
         return json.dumps(
-            [_marshal_field(self.vec.item_type, self.vec, i, options) for i in self]
+            [_marshal_field(self.vec.item_type, self.vec, i, options) for i in self],
+            **options.json_dumps,
         )
 
     def __str__(self):
@@ -68,7 +69,8 @@ class KV(Generic[_K, _V], UserDict):
                     self.kv.v_type, self.kv, v, options
                 )
                 for k, v in self.items()
-            }
+            },
+            **options.json_dumps,
         )
 
     def __str__(self):
@@ -76,32 +78,39 @@ class KV(Generic[_K, _V], UserDict):
 
 
 class Options:
-    def __init__(self, encode_json=False, skip_none_field=False):
-        self.encode_json = encode_json
+    def __init__(self, skip_none_field=False, json_loads={}, json_dumps={}):
         self.skip_none_field = skip_none_field
+        self.json_loads = json_loads
+        self.json_dumps = json_dumps
 
 
 _DT = TypeVar("_DT", bound="declares.Declared")
 
 
+_default_options = Options()
+
+
 @overload
-def unmarshal(typ: Type[_DT], buf: JsonData, options: Options) -> _DT:
+def unmarshal(typ, buf, options=...):
+    # type: (Type[_DT], JsonData, Options) -> _DT
     ...
 
 
 @overload
-def unmarshal(typ: "variables.vec[_T]", buf: JsonData, options: Options) -> Vec[_T]:
+def unmarshal(typ, buf, options=...):
+    # type: (variables.vec[_T], JsonData, Options) -> Vec[_T]
     ...
 
 
 @overload
-def unmarshal(typ: "variables.kv[_K, _V]", buf: JsonData, options: Options) -> KV[_K, _V]:
+def unmarshal(typ, buf, options=...):
+    # type: (variables.kv[_K, _V], JsonData, Options) -> KV[_K, _V]
     ...
 
 
-def unmarshal(typ, buf: JsonData, options: Options):
+def unmarshal(typ, buf: JsonData, options: Options = _default_options):
     if isinstance(typ, variables.vec):
-        li = json.loads(buf)
+        li = json.loads(buf, **options.json_loads)
         assert isinstance(li, List)
         vec = Vec(typ)  # type: ignore
         vec.extend(
@@ -112,7 +121,7 @@ def unmarshal(typ, buf: JsonData, options: Options):
         )
         return vec
     elif isinstance(typ, variables.kv):
-        mapping = json.loads(buf)
+        mapping = json.loads(buf, **options.json_loads)
         assert isinstance(mapping, Dict)
         kv = KV(typ)  # type: ignore
         kv.update(
@@ -125,21 +134,22 @@ def unmarshal(typ, buf: JsonData, options: Options):
         )
         return kv
 
-    return _unmarshal(typ, json.loads(buf), options)
+    return _unmarshal(typ, json.loads(buf, **options.json_loads), options)
 
 
 def _unmarshal(marshalable, data: Json, options: Options):
     if isinstance_safe(marshalable, variables.vec):
         assert isinstance(data, List)
         return [
-            _unmarshal_field(marshalable.item_type, marshalable, i, options) for i in data
+            _unmarshal_field(marshalable.item_type, marshalable, i, options)
+            for i in data
         ]
     elif isinstance_safe(marshalable, variables.kv):
         assert isinstance(data, Dict)
         return {
-            _unmarshal_field(marshalable.k_type, marshalable, k, options): _unmarshal_field(
-                marshalable.v_type, marshalable, v, options
-            )
+            _unmarshal_field(
+                marshalable.k_type, marshalable, k, options
+            ): _unmarshal_field(marshalable.v_type, marshalable, v, options)
             for k, v in data
         }
     elif issubclass_safe(marshalable, declares.Declared):
@@ -192,11 +202,11 @@ def _unmarshal_field(typ, field, value, options: Options):
 
 def marshal(
     unmarshalable_or_declared: Union[_Marshalable, "declares.Declared"],
-    options: Options,
+    options: Options = _default_options,
 ) -> str:
     if isinstance(unmarshalable_or_declared, declares.Declared):
         data = _marshal_declared(unmarshalable_or_declared, options)
-        return json.dumps(data)
+        return json.dumps(data, **options.json_dumps)
     else:
         return unmarshalable_or_declared.marshal(options)
 
