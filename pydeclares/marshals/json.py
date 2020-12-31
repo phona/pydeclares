@@ -15,8 +15,8 @@ _V = TypeVar("_V")
 
 
 @runtime_checkable
-class _UnMarshalable(Protocol):
-    def unmarshal(self, options: "Options") -> str:
+class _Marshalable(Protocol):
+    def marshal(self, options: "Options") -> str:
         ...
 
 
@@ -28,13 +28,13 @@ class Vec(Generic[_T], UserList):
         self.item_var = variables.compatible_var(vec.item_type)
         self.data = []
 
-    def _marshal_item(self, item: Json, options: "Options"):
+    def _unmarshal_item(self, item: Json, options: "Options"):
         v = _unmarshal_field(self.vec.item_type, self.item_var, item, options)
         if not self.item_var.type_checking(v):
             return self.item_var.cast_it(v)  # type: ignore
         return v
 
-    def unmarshal(self, options: "Options") -> str:
+    def marshal(self, options: "Options") -> str:
         return json.dumps(
             [_marshal_field(self.vec.item_type, self.vec, i, options) for i in self]
         )
@@ -52,7 +52,7 @@ class KV(Generic[_K, _V], UserDict):
         self.k_var = variables.compatible_var(kv.k_type)
         self.v_var = variables.compatible_var(kv.v_type)
 
-    def _marshal_k_v(self, k: Json, v: Json, options: "Options"):
+    def _unmarshal_k_v(self, k: Json, v: Json, options: "Options"):
         k_ = _unmarshal_field(self.kv.k_type, self.k_var, k, options)
         v_ = _unmarshal_field(self.kv.v_type, self.v_var, v, options)
         if not self.k_var.type_checking(k_):
@@ -61,7 +61,7 @@ class KV(Generic[_K, _V], UserDict):
             v_ = self.v_var.cast_it(v_)  # type: ignore
         return (k_, v_)
 
-    def unmarshal(self, options: "Options"):
+    def marshal(self, options: "Options"):
         return json.dumps(
             {
                 _marshal_field(self.kv.k_type, self.kv, k, options): _marshal_field(
@@ -106,7 +106,7 @@ def unmarshal(typ, buf: JsonData, options: Options):
         vec = Vec(typ)  # type: ignore
         vec.extend(
             map(
-                lambda item: vec._marshal_item(item, options),
+                lambda item: vec._unmarshal_item(item, options),
                 li,
             )
         )
@@ -118,7 +118,7 @@ def unmarshal(typ, buf: JsonData, options: Options):
         kv.update(
             dict(
                 map(
-                    lambda tup: kv._marshal_k_v(tup[0], tup[1], options),
+                    lambda tup: kv._unmarshal_k_v(tup[0], tup[1], options),
                     mapping.items(),
                 )
             )
@@ -162,7 +162,7 @@ def _unmarshal(marshalable, data: Json, options: Options):
     elif isinstance_safe(marshalable, Json):
         return data
 
-    raise MarshalError(f"type {marshalable} is not marshalable")
+    raise MarshalError(f"type {marshalable} is not unmarshalable")
 
 
 def _unmarshal_field(typ, field, value, options: Options):
@@ -184,21 +184,21 @@ def _unmarshal_field(typ, field, value, options: Options):
 
     if not field.codec:
         raise MarshalError(
-            f"can't marshal {type(value)!r} to property {field.name} which are {typ!r}"
+            f"can't unmarshal {type(value)!r} to property {field.name} which are {typ!r}"
         )
 
     return field.codec.decode(value)
 
 
 def marshal(
-    unmarshalable_or_declared: Union[_UnMarshalable, "declares.Declared"],
+    unmarshalable_or_declared: Union[_Marshalable, "declares.Declared"],
     options: Options,
 ) -> str:
-    if isinstance(unmarshalable_or_declared, _UnMarshalable):
-        return unmarshalable_or_declared.unmarshal(options)
-    else:
+    if isinstance(unmarshalable_or_declared, declares.Declared):
         data = _marshal_declared(unmarshalable_or_declared, options)
         return json.dumps(data)
+    else:
+        return unmarshalable_or_declared.marshal(options)
 
 
 def _marshal_declared(
@@ -228,6 +228,6 @@ def _marshal_field(typ, field, value, options):
         return value
 
     if not field.codec:
-        raise MarshalError(f"can't unmarshal property {field.name} which are {typ!r}")
+        raise MarshalError(f"can't marshal property {field.name} which are {typ!r}")
 
     return field.codec.encode(value)
