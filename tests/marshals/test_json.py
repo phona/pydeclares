@@ -150,15 +150,15 @@ def test_marshal_enum():
         Apple = 0
         Banana = 1
 
-    class FruitCodec:
-        def encode(self, fruit: Fruit) -> int:
+    class FruitSerializer:
+        def to_representation(self, fruit: Fruit) -> int:
             return fruit.value
 
-        def decode(self, val: int) -> Fruit:
+        def to_internal_value(self, val: int) -> Fruit:
             return Fruit(val)
 
     class Struct(Declared):
-        p0 = var(Fruit, custom_codec=FruitCodec())
+        p0 = var(Fruit, serializer=FruitSerializer())
 
     _str = '{"p0": 0}'
     out = json.unmarshal(Struct, _str, json.Options())

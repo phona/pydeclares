@@ -1,11 +1,11 @@
 import json
 from collections import UserDict, UserList
-from typing import Dict, Generic, List, Optional, Type, TypeVar, Union, overload
+from typing import Dict, List, Type, TypeVar, Union, overload
 
 from pydeclares import declares, variables
 from pydeclares.defines import MISSING, Json, JsonData
 from pydeclares.marshals.exceptions import MarshalError
-from pydeclares.utils import isinstance_safe, issubclass_safe
+from pydeclares.utils import issubclass_safe
 from typing_extensions import Protocol, runtime_checkable
 
 _Literal = Union[str, int, float, bool, None]
@@ -20,13 +20,10 @@ class _Marshalable(Protocol):
         ...
 
 
-class Vec(Generic[_T], UserList):
-    data: List[_T]
-
+class Vec(List[_T], UserList):
     def __init__(self, vec: "variables.vec"):
         self.vec = vec
         self.item_var = variables.compatible_var(vec.item_type)
-        self.data = []
 
     def _unmarshal_item(self, item: Json, options: "Options"):
         v = _unmarshal_field(self.vec.item_type, self.item_var, item, options)
@@ -40,16 +37,10 @@ class Vec(Generic[_T], UserList):
             **options.json_dumps,
         )
 
-    def __str__(self):
-        return str(self.data)
 
-
-class KV(Generic[_K, _V], UserDict):
-    data: Dict[_K, _V]
-
+class KV(Dict[_K, _V], UserDict):
     def __init__(self, kv: "variables.kv"):
         self.kv = kv
-        self.data = {}
         self.k_var = variables.compatible_var(kv.k_type)
         self.v_var = variables.compatible_var(kv.v_type)
 
@@ -72,9 +63,6 @@ class KV(Generic[_K, _V], UserDict):
             },
             **options.json_dumps,
         )
-
-    def __str__(self):
-        return str(self.data)
 
 
 class Options:
@@ -138,21 +126,24 @@ def unmarshal(typ, buf: JsonData, options: Options = _default_options):
 
 
 def _unmarshal(marshalable, data: Json, options: Options):
-    if isinstance_safe(marshalable, variables.vec):
+    # type: (Union[variables.vec, variables.kv, Json, Type[declares.Declared]], Json, Options) -> Union[List, Dict, Json, declares.Declared]
+    if isinstance(marshalable, variables.vec):
         assert isinstance(data, List)
         return [
             _unmarshal_field(marshalable.item_type, marshalable, i, options)
             for i in data
         ]
-    elif isinstance_safe(marshalable, variables.kv):
+    elif isinstance(marshalable, variables.kv):
         assert isinstance(data, Dict)
         return {
             _unmarshal_field(
                 marshalable.k_type, marshalable, k, options
             ): _unmarshal_field(marshalable.v_type, marshalable, v, options)
-            for k, v in data
+            for k, v in data.items()
         }
-    elif issubclass_safe(marshalable, declares.Declared):
+    elif isinstance(marshalable, Json.__args__):  # type: ignore
+        return data
+    elif issubclass(marshalable, declares.Declared):  # type: ignore
         assert isinstance(data, Dict)
         if not data:
             return marshalable()
@@ -169,21 +160,19 @@ def _unmarshal(marshalable, data: Json, options: Options):
             init_kwargs[field.name] = field_value
 
         return marshalable(**init_kwargs)
-    elif isinstance_safe(marshalable, Json):
-        return data
 
     raise MarshalError(f"type {marshalable} is not unmarshalable")
 
 
 def _unmarshal_field(typ, field, value, options: Options):
-    if issubclass_safe(typ, _Literal.__args__):  # type: ignore
+    if issubclass(typ, _Literal.__args__):  # type: ignore
         return value
-    elif issubclass_safe(typ, declares.Declared):
+    elif issubclass(typ, declares.Declared):
         return _unmarshal(typ, value, options)
-    elif isinstance_safe(typ, List):
+    elif issubclass(typ, List):
         assert isinstance(value, List)
         return [_unmarshal_field(field.item_type, field, i, options) for i in value]
-    elif isinstance_safe(typ, Dict):
+    elif issubclass(typ, Dict):
         assert isinstance(value, Dict)
         return {
             _unmarshal_field(field.k_type, field, k, options): _unmarshal_field(
@@ -192,12 +181,12 @@ def _unmarshal_field(typ, field, value, options: Options):
             for k, v in value.items()
         }
 
-    if not field.codec:
+    if not field.serializer:
         raise MarshalError(
-            f"can't unmarshal {type(value)!r} to property {field.name} which are {typ!r}"
+            f"can't unmarshal `{type(value)!r}` to property `{field.name}` which are `{typ!r}`"
         )
 
-    return field.codec.decode(value)
+    return field.serializer.to_internal_value(value)
 
 
 def marshal(
@@ -216,9 +205,16 @@ def _marshal_declared(
 ) -> Dict[str, Json]:
     kv = {}
     for field in declares.fields(declared):
-        kv[field.field_name] = _marshal_field(
+        if field.ignore_serialize:
+            continue
+
+        value = _marshal_field(
             field.type_, field, getattr(declared, field.name), options
         )
+        if value is None and options.skip_none_field:
+            continue
+
+        kv[field.field_name] = value
     return kv
 
 
@@ -237,7 +233,7 @@ def _marshal_field(typ, field, value, options):
     elif issubclass_safe(typ, _Literal.__args__):  # type: ignore
         return value
 
-    if not field.codec:
-        raise MarshalError(f"can't marshal property {field.name} which are {typ!r}")
+    if not field.serializer:
+        raise MarshalError(f"can't marshal property `{field.name}` which are `{typ!r}`")
 
-    return field.codec.encode(value)
+    return field.serializer.to_representation(value)

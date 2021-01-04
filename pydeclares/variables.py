@@ -19,7 +19,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Protocol, runtime_checkable
+from typing_extensions import Literal, Protocol, runtime_checkable
 
 from pydeclares import declares
 from pydeclares.utils import NamingStyle, isinstance_safe, issubclass_safe
@@ -29,11 +29,11 @@ _GT = TypeVar("_GT")
 _ST = TypeVar("_ST")
 
 
-class _Codec(Protocol[_GT, _ST]):
-    def encode(self, _: _GT) -> _ST:
+class _Serializer(Protocol[_GT, _ST]):
+    def to_representation(self, _: _GT) -> _ST:
         ...
 
-    def decode(self, _: _ST) -> _GT:
+    def to_internal_value(self, _: _ST) -> _GT:
         ...
 
 
@@ -60,7 +60,7 @@ class Var(Generic[_GT, _ST]):
         as_xml_attr: bool = False,
         as_xml_text: bool = False,
         init: bool = True,
-        custom_codec: Optional[_Codec[_GT, _ST]] = None,
+        serializer: Optional[_Serializer[_GT, _ST]] = None,
     ):
         """check input arguments and create a Var object
 
@@ -108,7 +108,7 @@ class Var(Generic[_GT, _ST]):
         self.as_xml_attr = as_xml_attr
         self.as_xml_text = as_xml_text
 
-        self.codec = custom_codec
+        self.serializer = serializer
 
     @property
     def field_name(self):
@@ -130,7 +130,7 @@ class Var(Generic[_GT, _ST]):
         if not isinstance_safe(field_value, self.type_):
             return self.cast_it(field_value)
 
-        return None
+        return field_value
 
     @property
     @abstractmethod
@@ -166,11 +166,6 @@ class Var(Generic[_GT, _ST]):
 
     def __set__(self, instance: "declares.Declared", value: _ST):
         setattr(instance, self.name, value)
-
-    # def __set__(self, instance: Any, value: _ST) -> None:
-    #     if not isinstance(instance, self.type_):
-    #         instance = self.cast_it(instance)
-    #     setattr(instance, self.name, value)
 
     def __str__(self):
         return f"{self.__class__.__name__}<{self.type_.__name__}>"
@@ -260,7 +255,7 @@ class var(Var[_GT, Union[Castable[_GT], _GT]]):
         as_xml_attr: bool = ...,
         as_xml_text: bool = ...,
         init: bool = ...,
-        custom_codec: Optional[_Codec[_GT, _ST]] = ...,
+        custom_codec: Optional[_Serializer[_GT, _ST]] = ...,
     ):
         ...
 
@@ -305,7 +300,7 @@ class kv(Var[Mapping[_K, _V], Castable[Mapping[_K, _V]]]):
         as_xml_attr: bool = ...,
         as_xml_text: bool = ...,
         init: bool = ...,
-        custom_codec: Optional[_Codec[_GT, _ST]] = ...,
+        serializer: Optional[_Serializer[_GT, _ST]] = ...,
     ):
         ...
 
@@ -349,7 +344,7 @@ class vec(Var[List[_GT], Castable[Iterable[_GT]]]):
         as_xml_attr: bool = ...,
         as_xml_text: bool = ...,
         init: bool = ...,
-        custom_codec: Optional[_Codec[_GT, _ST]] = ...,
+        serializer: Optional[_Serializer[_GT, _ST]] = ...,
     ):
         ...
 
@@ -370,17 +365,24 @@ class vec(Var[List[_GT], Castable[Iterable[_GT]]]):
     def construct(self) -> Type[List[_GT]]:
         return list  # type: ignore
 
-    def cast_it(self, obj: Castable[Iterable[_GT]]) -> List[_GT]:
-        try:
+    def type_checking(self, obj: Any) -> bool:
+        if not isinstance(obj, Iterable):
+            return False
+
+        return all(map(lambda x: isinstance(x, self.item_type), obj))
+
+    def cast_it(self, obj: Union[Castable[Iterable[_GT]], Iterable[_GT]]) -> List[_GT]:
+        if isinstance(obj, Castable):
             return list(obj.cast())
-        except AttributeError:
-            raise TypeError(f"{obj.__class__} has not implemented protocol _Castable")
+        else:
+            v = compatible_var(self.item_type)
+            return [v.cast_it(i) for i in obj]
 
 
 @overload
 def compatible_var(
     type_: Type[_GT],
-    required: bool = ...,
+    required: Literal[True] = ...,
     field_name: Optional[str] = ...,
     default: Optional[_GT] = ...,
     default_factory: Optional[Callable[..., _GT]] = ...,
@@ -389,9 +391,37 @@ def compatible_var(
     as_xml_attr: bool = ...,
     as_xml_text: bool = ...,
     init: bool = ...,
-    custom_codec: Optional[_Codec[_GT, _ST]] = ...,
+    serializer: Optional[_Serializer[_GT, _ST]] = ...,
 ) -> Var[_GT, Union[Castable[_GT], _GT]]:
     ...
+
+
+@overload
+def compatible_var(
+    type_: Type[_GT],
+    required: Literal[False] = ...,
+    field_name: Optional[str] = ...,
+    default: Optional[_GT] = ...,
+    default_factory: Optional[Callable[..., _GT]] = ...,
+    ignore_serialize: bool = ...,
+    naming_style: Callable[[str], str] = ...,
+    as_xml_attr: bool = ...,
+    as_xml_text: bool = ...,
+    init: bool = ...,
+    serializer: Optional[_Serializer[_GT, _ST]] = ...,
+) -> Var[Optional[_GT], Union[Castable[Optional[_GT]], Optional[_GT]]]:
+    ...
+
+
+class _ObjectSerializer:
+    def to_representation(self, o: object) -> object:
+        return o
+
+    def to_internal_value(self, o: object) -> object:
+        return o
+
+
+_object_serializer = _ObjectSerializer()
 
 
 def compatible_var(
@@ -400,11 +430,10 @@ def compatible_var(
     if isinstance(type_, vec):
         return type_
     elif issubclass_safe(type_, List):
-        if issubclass_safe(type_, declares.GenericList):  # type: ignore
-            return vec(type_.__type__, *args, **kwargs)
-        else:
-            return vec(object, *args, **kwargs)
+        kwargs.setdefault("serializer", _object_serializer)
+        return vec(object, *args, **kwargs)
     elif issubclass_safe(type_, Dict):
+        kwargs.setdefault("serializer", _object_serializer)
         return kv(object, object, *args, **kwargs)
     elif type_ is int:
         return Int(*args, **kwargs)

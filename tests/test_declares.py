@@ -1,9 +1,9 @@
 import unittest
 from datetime import datetime
 from enum import Enum
+from typing import List
 
 from pydeclares import Declared, NamingStyle, var, vec
-from pydeclares.variables import vec
 
 
 class InnerJSONTestClass(Declared):
@@ -11,10 +11,26 @@ class InnerJSONTestClass(Declared):
     ib = var(int)
 
 
+class BytesSerializer:
+    def to_representation(self, bs: bytes) -> List:
+        return list(bs)
+
+    def to_internal_value(self, s: List) -> bytes:
+        return bytes(s)
+
+
+class ObjectCodec:
+    def encode(self, o: object) -> object:
+        return o
+
+    def decode(self, o: object) -> object:
+        return o
+
+
 class JSONTestClass(Declared):
     a = var(int)
     b = var(float)
-    c = var(bytes)
+    c = var(bytes, serializer=BytesSerializer())
     d = var(str)
     e = var(bool)
     f = var(list)
@@ -31,10 +47,18 @@ class InheritedJSONTestClass(JSONTestClass, InnerJSONTestClass):
     iia = var(int)
 
 
+class DatetimeCodec:
+    def to_representation(self, dt: datetime) -> float:
+        return dt.timestamp()
+
+    def to_internal_value(self, timestamp: float):
+        return datetime.fromtimestamp(timestamp)
+
+
 class NewVarJsonTestClass(Declared):
     a = var(int, field_name="na")
     b = var(int, field_name="nb")
-    c = var(datetime)
+    c = var(datetime, serializer=DatetimeCodec())
 
 
 class NewVarDeclaredTestCase(unittest.TestCase):
@@ -45,7 +69,7 @@ class NewVarDeclaredTestCase(unittest.TestCase):
     def test_str(self):
         json_obj = NewVarJsonTestClass(1, 2, self.dt)
         self.assertEqual(
-            str(json_obj), "NewVarJsonTestClass(a=1,b=2,c=2019-10-10 10:10:10)"
+            str(json_obj), "NewVarJsonTestClass(a=1, b=2, c=2019-10-10 10:10:10)"
         )
 
     def test_to_dict(self):
@@ -62,7 +86,7 @@ class NewVarDeclaredTestCase(unittest.TestCase):
         dct = {"na": 1, "nb": 2, "c": self.dt}
         json_obj = NewVarJsonTestClass.from_dict(dct)
         self.assertEqual(
-            str(json_obj), "NewVarJsonTestClass(a=1,b=2,c=2019-10-10 10:10:10)"
+            str(json_obj), "NewVarJsonTestClass(a=1, b=2, c=2019-10-10 10:10:10)"
         )
 
     def test_hash(self):
@@ -92,7 +116,7 @@ class CombineDeclaredTestCase(unittest.TestCase):
         )
         self.assertEqual(
             str(json_obj),
-            "CombineJSONTestClass(a=1,b=123,json=JSONTestClass(a=1,b=1.2,c=b'123',d=123,e=True,f=[1, 2, 3],g={'a': 1}))",
+            "CombineJSONTestClass(a=1, b=123, json=JSONTestClass(a=1, b=1.2, c=b'123', d=123, e=True, f=[1, 2, 3], g={'a': 1}))",
         )
 
     def test_to_dict(self):
@@ -107,7 +131,7 @@ class CombineDeclaredTestCase(unittest.TestCase):
                 "json": {
                     "a": 1,
                     "b": 1.2,
-                    "c": [49, 50, 51],
+                    "c": b"123",
                     "d": "123",
                     "e": True,
                     "f": [1, 2, 3],
@@ -142,7 +166,7 @@ class CombineDeclaredTestCase(unittest.TestCase):
         json_obj = CombineJSONTestClass.from_dict(dct)
         self.assertEqual(
             str(json_obj),
-            "CombineJSONTestClass(a=1,b=123,json=JSONTestClass(a=1,b=1.2,c=b'123',d=123,e=True,f=[1, 2, 3],g={'a': 1}))",
+            "CombineJSONTestClass(a=1, b=123, json=JSONTestClass(a=1, b=1.2, c=b'123', d=123, e=True, f=[1, 2, 3], g={'a': 1}))",
         )
 
     def test_hash(self):
@@ -220,7 +244,7 @@ class InheritedDeclaredTestCase(unittest.TestCase):
         )
         self.assertEqual(
             str(json_obj),
-            "InheritedJSONTestClass(a=1,b=1.2,c=b'123',d=123,e=True,f=[1, 2, 3],g={'a': 1},ia=10,ib=11,iia=100)",
+            "InheritedJSONTestClass(a=1, b=1.2, c=b'123', d=123, e=True, f=[1, 2, 3], g={'a': 1}, ia=10, ib=11, iia=100)",
         )
 
     def test_to_dict(self):
@@ -233,7 +257,7 @@ class InheritedDeclaredTestCase(unittest.TestCase):
                 "iia": 100,
                 "a": 1,
                 "b": 1.2,
-                "c": [49, 50, 51],
+                "c": b"123",
                 "d": "123",
                 "e": True,
                 "f": [1, 2, 3],
@@ -268,7 +292,7 @@ class InheritedDeclaredTestCase(unittest.TestCase):
         json_obj = InheritedJSONTestClass.from_dict(dct)
         self.assertEqual(
             str(json_obj),
-            "InheritedJSONTestClass(a=1,b=1.2,c=b'123',d=123,e=True,f=[1, 2, 3],g={'a': 1},ia=10,ib=11,iia=100)",
+            "InheritedJSONTestClass(a=1, b=1.2, c=b'123', d=123, e=True, f=[1, 2, 3], g={'a': 1}, ia=10, ib=11, iia=100)",
         )
 
     def test_hash(self):
@@ -340,7 +364,7 @@ class SimpleDeclaredTestCase(unittest.TestCase):
         json_obj = JSONTestClass(1, 1.2, b"123", "123", True, [1, 2, 3], {"a": 1})
         self.assertEqual(
             str(json_obj),
-            "JSONTestClass(a=1,b=1.2,c=b'123',d=123,e=True,f=[1, 2, 3],g={'a': 1})",
+            "JSONTestClass(a=1, b=1.2, c=b'123', d=123, e=True, f=[1, 2, 3], g={'a': 1})",
         )
 
     def test_to_dict(self):
@@ -355,7 +379,7 @@ class SimpleDeclaredTestCase(unittest.TestCase):
             {
                 "a": 1,
                 "b": 1.2,
-                "c": [49, 50, 51],
+                "c": b"123",
                 "d": "123",
                 "e": True,
                 "f": [1, 2, 3],
@@ -389,7 +413,7 @@ class SimpleDeclaredTestCase(unittest.TestCase):
         json_obj = JSONTestClass.from_dict(dct)
         self.assertEqual(
             str(json_obj),
-            "JSONTestClass(a=1,b=1.2,c=b'123',d=123,e=True,f=[1, 2, 3],g={'a': 1})",
+            "JSONTestClass(a=1, b=1.2, c=b'123', d=123, e=True, f=[1, 2, 3], g={'a': 1})",
         )
 
     def test_hash(self):
@@ -451,7 +475,6 @@ class SimpleDeclaredTestCase(unittest.TestCase):
 
 class GenericListTestCase(unittest.TestCase):
     def test_v1_int(self):
-
         class Product(Declared):
             pay_types = vec(int)
 

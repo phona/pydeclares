@@ -3,7 +3,6 @@ from json.decoder import JSONDecoder
 from json.encoder import JSONEncoder
 from typing import (
     Any,
-    AnyStr,
     Callable,
     ClassVar,
     Dict,
@@ -22,7 +21,7 @@ from pydeclares import variables as vars
 from pydeclares.codecs import CodecNotFoundError, encode
 from pydeclares.defines import MISSING, JsonData
 from pydeclares.marshals import json, xml
-from pydeclares.utils import isinstance_safe
+from pydeclares.utils import isinstance_safe, xml_prettify
 
 Var = variables.Var
 
@@ -81,10 +80,18 @@ class Declared(metaclass=BaseDeclared):
     def __init__(self, *args, **kwargs):
         # type: (Any, Any) -> None
         kwargs.update(dict(zip(self.fields, args)))
-        fs = fields(self)
         omits = {}
-        for field in fs:
+        omit_fields = []  # type: List[variables.Var]
+        for field in fields(self):
             field_value = kwargs.get(field.name, MISSING)
+
+            if field_value is MISSING:
+                field_value = field.make_default()
+                if field_value is None and field.required:
+                    raise AttributeError(
+                        f"field `{field.name}` is required. if you doesn't want to init this variable in initializer, "
+                        f"please set `init` argument to False for this variable."
+                    )
 
             # set `init` to False but `required` is True, that mean is this variable must be init in later
             # otherwise seiralize will be failed.
@@ -92,22 +99,22 @@ class Declared(metaclass=BaseDeclared):
             if not field.init:
                 if field_value is not MISSING:
                     omits[field.name] = field_value
+                    omit_fields.append(field)
                 continue
 
-            if field_value is MISSING:
-                field_value = field.make_default()
-                if field_value is MISSING and field.required:
-                    raise AttributeError(
-                        f"field {field.name!r} is required. if you doesn't want to init this variable in initializer, "
-                        f"please set `init` argument to False for this variable."
-                    )
-
-            if not field.type_checking(field_value):
-                field_value = field.cast_it(field_value)
-            setattr(self, field.name, field_value)
+            self._setattr(field, field_value)
 
         self.__post_init__(**omits)
         self._is_empty = False
+
+        for k in omit_fields:
+            self._setattr(k, getattr(self, k.name, MISSING))
+
+    def _setattr(self, field, field_value):
+        # type: (variables.Var, Any) -> None
+        if field_value is not None and not field.type_checking(field_value):
+            field_value = field.cast_it(field_value)
+        setattr(self, field.name, field_value)
 
     def __post_init__(self, **omits: Any):
         """"""
@@ -126,8 +133,8 @@ class Declared(metaclass=BaseDeclared):
             return _has_nest_declared_class
 
     @classmethod
-    def from_dict(cls, kvs):
-        # type: (Type[_DT], Dict[str, Any]) -> _DT
+    def from_dict(cls, kvs, enable_serializer=False):
+        # type: (Type[_DT], Dict[str, Any], bool) -> _DT
         init_kwargs = {}
         for field in fields(cls):
             try:
@@ -140,12 +147,15 @@ class Declared(metaclass=BaseDeclared):
                     continue
                 field_value = default
 
+            if field.serializer and enable_serializer:
+                field_value = field.serializer.to_internal_value(field_value)
+
             init_kwargs[field.name] = field_value
 
         return cls(**init_kwargs)
 
-    def to_dict(self, skip_none_field=False):
-        # type: (bool) -> Dict[str, Any]
+    def to_dict(self, skip_none_field=False, enable_serializer=False):
+        # type: (bool, bool) -> Dict[str, Any]
         result = []
         field: Var[Any, Any]
         for field in fields(self):
@@ -165,7 +175,10 @@ class Declared(metaclass=BaseDeclared):
                 continue
 
             if isinstance_safe(field_value, Declared):
-                field_value = self.to_dict(skip_none_field)
+                field_value = field_value.to_dict(skip_none_field)
+
+            if field.serializer and enable_serializer:
+                field_value = field.serializer.to_representation(field_value)
 
             result.append((field.field_name, field_value))
 
@@ -179,14 +192,14 @@ class Declared(metaclass=BaseDeclared):
 
         cls.from_form_data
 
-        return cls.from_dict(dict(urlparse.parse_qsl(form_data)))  # type: ignore
+        return cls.from_dict(dict(urlparse.parse_qsl(form_data)), True)  # type: ignore
 
     def to_form_data(self, skip_none_field=False):
         # type: (bool) -> str
         if self.has_nest_declared_class():
             raise ValueError("can't serialize with nested declared class.")
 
-        data = self.to_dict(skip_none_field=skip_none_field)
+        data = self.to_dict(skip_none_field, True)
         for k, v in data.items():
             try:
                 data[k] = encode(v)
@@ -201,35 +214,19 @@ class Declared(metaclass=BaseDeclared):
         if cls.has_nest_declared_class():
             raise ValueError("can't deserialize to nested declared class.")
 
-        return cls.from_dict(dict(urlparse.parse_qsl(query_string)))  # type: ignore
+        return cls.from_dict(dict(urlparse.parse_qsl(query_string)), True)  # type: ignore
 
     def to_query_string(
         self,
-        skip_none_field: bool = False,
-        doseq: bool = False,
-        safe: str = "",
-        encoding: str = "",
-        errors: str = "",
-        quote_via: Callable[[str, AnyStr, str, str], str] = urlparse.quote_plus,
+        skip_none_field=False,
+        **urlkwargs,
     ):
+        # type: (bool, Any) -> str
         if self.has_nest_declared_class():
             raise ValueError("can't deserialize to nested declared class.")
 
-        data = self.to_dict(skip_none_field=skip_none_field)
-        for k, v in data.items():
-            try:
-                data[k] = encode(v)
-            except CodecNotFoundError:
-                pass
-
-        return urlparse.urlencode(
-            data,
-            doseq=doseq,
-            safe=safe,
-            encoding=encoding,
-            errors=errors,
-            quote_via=quote_via,
-        )
+        data = self.to_dict(skip_none_field, True)
+        return urlparse.urlencode(data, **urlkwargs)
 
     @overload
     def to_json(
@@ -299,7 +296,10 @@ class Declared(metaclass=BaseDeclared):
             `text`
         </tag>
         """
-        return xml.marshal(self, xml.Options(skip_none_field, indent))
+        node = xml.marshal(self, xml.Options(skip_none_field, indent))
+        if indent is not None:
+            xml_prettify(node, indent, "\n")
+        return node
 
     def to_xml_bytes(self, skip_none_field=False, indent=None, **kw) -> bytes:
         # type: (bool, Optional[str], Any) -> bytes

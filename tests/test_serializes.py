@@ -1,9 +1,17 @@
 import re
 import unittest
 from xml.etree import ElementTree as ET
+from xml.parsers import expat
 
 from pydeclares import Declared, vec, pascalcase_var, var
 from pydeclares.marshals import json, xml
+from xmlformatter import Formatter
+
+_xml_formatter = Formatter()
+
+
+def format_xml(s: str):
+    return _xml_formatter.format_string(s).decode()
 
 
 class JSONSerializeTestCase(unittest.TestCase):
@@ -158,7 +166,7 @@ class XmlSerializeTestCase(unittest.TestCase):
             name = var(str, as_xml_attr=True)
             neighbor = var(Neighbor)
 
-        Data = vec(Country)
+        Data = vec(Country, field_name="country")
         data = xml.unmarshal(Data, ET.XML(xml_string))
         self.assertEqual(
             ET.tostring(xml.marshal(data, xml.Options(True))).decode(),
@@ -173,7 +181,6 @@ class XmlSerializeTestCase(unittest.TestCase):
 
     def test_other_simple_use(self):
         xml_string = """
-        <?xml version="1.0" encoding="utf-8"?>
         <resources>
             <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
                 <item name="colorPrimary">@color/colorPrimary</item>
@@ -203,20 +210,24 @@ class XmlSerializeTestCase(unittest.TestCase):
 
         class Style(Declared):
             name = var(str, as_xml_attr=True)
-            parent = var(str, as_xml_attr=True, default=None)
+            parent = var(str, as_xml_attr=True, required=False)
             items = vec(Item, field_name="item")
 
-        Resource = vec(Style)
+        Resource = vec(Style, field_name="style")
         data = xml.unmarshal(Resource, ET.XML(xml_string))
-        self.assertEqual(
-            ET.tostring(xml.marshal(data, xml.Options(True))).decode(),
-            '<resources><style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar"><item name="colorPrimary">@color/colorPrimary</item><item name="colorPrimaryDark">@color/colorPrimaryDark</item><item name="colorAccent">@color/colorAccent</item></style><style name="AppTheme.NoActionBar"><item name="windowActionBar">false</item><item name="windowNoTitle">true</item></style><style name="AppTheme.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" /><style name="AppTheme.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" /><style name="ratingBarStyle" parent="@android:style/Widget.RatingBar"><item name="android:progressDrawable">@drawable/ratingbar_drawable</item><item name="android:minHeight">48dip</item><item name="android:maxHeight">48dip</item></style></resources>',
-        )
+        assert len(data) == 5
+        assert format_xml(
+            ET.tostring(xml.marshal(data, xml.Options(True))).decode()
+        ) == format_xml(xml_string)
         v = json.Vec(data.vec)
         v.extend(data)
-        self.assertEqual(
-            json.marshal(v),
-            '[{"name": "AppTheme", "parent": "Theme.AppCompat.Light.DarkActionBar", "item": [{"name": "colorPrimary", "text": "@color/colorPrimary"}, {"name": "colorPrimaryDark", "text": "@color/colorPrimaryDark"}, {"name": "colorAccent", "text": "@color/colorAccent"}]}, {"name": "AppTheme.NoActionBar", "parent": null, "item": [{"name": "windowActionBar", "text": "false"}, {"name": "windowNoTitle", "text": "true"}]}, {"name": "AppTheme.AppBarOverlay", "parent": "ThemeOverlay.AppCompat.Dark.ActionBar", "item": []}, {"name": "AppTheme.PopupOverlay", "parent": "ThemeOverlay.AppCompat.Light", "item": []}, {"name": "ratingBarStyle", "parent": "@android:style/Widget.RatingBar", "item": [{"name": "android:progressDrawable", "text": "@drawable/ratingbar_drawable"}, {"name": "android:minHeight", "text": "48dip"}, {"name": "android:maxHeight", "text": "48dip"}]}]',
+        assert (
+            json.marshal(v)
+            == '[{"name": "AppTheme", "parent": "Theme.AppCompat.Light.DarkActionBar", "item": [{"name": "colorPrimary", "text": "@color/colorPrimary"}, {"name": "colorPrimaryDark", "text": "@color/colorPrimaryDark"}, {"name": "colorAccent", "text": "@color/colorAccent"}]}, {"name": "AppTheme.NoActionBar", "parent": null, "item": [{"name": "windowActionBar", "text": "false"}, {"name": "windowNoTitle", "text": "true"}]}, {"name": "AppTheme.AppBarOverlay", "parent": "ThemeOverlay.AppCompat.Dark.ActionBar", "item": []}, {"name": "AppTheme.PopupOverlay", "parent": "ThemeOverlay.AppCompat.Light", "item": []}, {"name": "ratingBarStyle", "parent": "@android:style/Widget.RatingBar", "item": [{"name": "android:progressDrawable", "text": "@drawable/ratingbar_drawable"}, {"name": "android:minHeight", "text": "48dip"}, {"name": "android:maxHeight", "text": "48dip"}]}]'
+        )
+        assert (
+            json.marshal(v, json.Options(True))
+            == '[{"name": "AppTheme", "parent": "Theme.AppCompat.Light.DarkActionBar", "item": [{"name": "colorPrimary", "text": "@color/colorPrimary"}, {"name": "colorPrimaryDark", "text": "@color/colorPrimaryDark"}, {"name": "colorAccent", "text": "@color/colorAccent"}]}, {"name": "AppTheme.NoActionBar", "item": [{"name": "windowActionBar", "text": "false"}, {"name": "windowNoTitle", "text": "true"}]}, {"name": "AppTheme.AppBarOverlay", "parent": "ThemeOverlay.AppCompat.Dark.ActionBar", "item": []}, {"name": "AppTheme.PopupOverlay", "parent": "ThemeOverlay.AppCompat.Light", "item": []}, {"name": "ratingBarStyle", "parent": "@android:style/Widget.RatingBar", "item": [{"name": "android:progressDrawable", "text": "@drawable/ratingbar_drawable"}, {"name": "android:minHeight", "text": "48dip"}, {"name": "android:maxHeight", "text": "48dip"}]}]'
         )
 
     def test_declared_to_xml(self):
@@ -428,6 +439,7 @@ class XmlSerializeTestCase(unittest.TestCase):
 </FileFormat>"""
 
         adi = FileFormat.from_xml_string(xml_string)
+        self.maxDiff = None
         self.assertMultiLineEqual(
             adi.to_xml_bytes(encoding="utf8", indent=" " * 6).decode("utf8"), xml_string
         )
@@ -437,7 +449,7 @@ class XmlSerializeTestCase(unittest.TestCase):
         <?xml version="1.0" encoding="utf-8"?>
         <person valid="true">
             <name>John</name>
-            <age></age>
+            <age>18</age>
         </person>
         """.strip()
 
@@ -449,19 +461,19 @@ class XmlSerializeTestCase(unittest.TestCase):
         one_person = Person.from_xml_string(xml_string)
         self.assertEqual(one_person.name, "John")
         self.assertEqual(one_person.valid, "true")
-        self.assertIs(one_person.age, None)
+        self.assertIs(one_person.age, 18)
         self.assertEqual(
             one_person.to_xml_bytes().decode(),
-            '<person valid="true"><name>John</name><age /></person>',
+            '<person valid="true"><name>John</name><age>18</age></person>',
         )
         self.assertEqual(
-            one_person.to_json(), '{"valid": "true", "name": "John", "age": null}'
+            one_person.to_json(), '{"valid": "true", "name": "John", "age": 18}'
         )
         self.assertEqual(
             one_person.to_xml_bytes(skip_none_field=True).decode(),
-            '<person valid="true"><name>John</name></person>',
+            '<person valid="true"><name>John</name><age>18</age></person>',
         )
         self.assertEqual(
             one_person.to_json(skip_none_field=True),
-            '{"valid": "true", "name": "John"}',
+            '{"valid": "true", "name": "John", "age": 18}',
         )
