@@ -1,3 +1,4 @@
+from pydeclares.exceptions import FieldRequiredError
 import unittest
 from datetime import datetime
 from enum import Enum
@@ -387,7 +388,7 @@ class SimpleDeclaredTestCase(unittest.TestCase):
             },
         )
         json_obj_1 = ITestJsonClass(a=1, b=1, c=2)
-        self.assertRaises(AttributeError, JSONTestClass, a=1, b=1.2, f=[1, 2, 3])
+        self.assertRaises(FieldRequiredError, JSONTestClass, a=1, b=1.2, f=[1, 2, 3])
         self.assertEqual(
             json_obj_1.to_dict(skip_none_field=True), {"a": 1, "b": 1, "c": 2}
         )

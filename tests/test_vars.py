@@ -1,3 +1,5 @@
+from typing import Any
+from pydeclares.exceptions import FieldRequiredError
 import unittest
 
 from pydeclares import var, NamingStyle, Declared
@@ -55,7 +57,7 @@ class VarTestCase(unittest.TestCase):
 			b = var(int)
 			c = var(int, init=False)
 
-			def __post_init__(self):
+			def __post_init__(self, **omits):
 				self.c = self.a + self.b
 
 		inst = Klass(1, 2)
@@ -100,7 +102,7 @@ class VarTestCase(unittest.TestCase):
 			b = var(int)
 			c = var(int, init=False, required=False)
 
-			def __post_init__(self):
+			def __post_init__(self, **omits):
 				self.c = self.a + self.b
 
 		inst = Klass(1, 2)
@@ -113,17 +115,12 @@ class VarTestCase(unittest.TestCase):
 		class Klass(Declared):
 			a = var(int)
 
-		self.assertRaises(AttributeError, Klass)
+		self.assertRaises(FieldRequiredError, Klass)
 
 		i1 = Klass(1)
 		self.assertEqual(i1.a, 1)
 		self.assertEqual(i1.to_json(), "{\"a\": 1}")
 		self.assertEqual(i1.to_json(skip_none_field=True), "{\"a\": 1}")
-
-		i1 = Klass(None)
-		self.assertEqual(i1.a, None)
-		self.assertEqual(i1.to_json(), "{\"a\": null}")
-		self.assertEqual(i1.to_json(skip_none_field=True), "{}")
 
 	def test_required(self):
 
@@ -145,15 +142,10 @@ class VarTestCase(unittest.TestCase):
 		class Klass(Declared):
 			a = var(int, ignore_serialize=True)
 
-		self.assertRaises(AttributeError, Klass)
+		self.assertRaises(FieldRequiredError, Klass)
 
 		i3 = Klass(1)
 		self.assertEqual(i3.a, 1)
-		self.assertEqual(i3.to_json(), "{}")
-		self.assertEqual(i3.to_json(skip_none_field=True), "{}")
-
-		i3 = Klass(None)
-		self.assertEqual(i3.a, None)
 		self.assertEqual(i3.to_json(), "{}")
 		self.assertEqual(i3.to_json(skip_none_field=True), "{}")
 
@@ -162,26 +154,23 @@ class VarTestCase(unittest.TestCase):
 		class Klass(Declared):
 			a = var(int, init=False)
 
+			def __post_init__(self, **omits: Any):
+				self.a = omits.get("a", 0) or 0
+
 		i4 = Klass()
-		self.assertEqual(i4.a, None)
-		self.assertRaises(AttributeError, i4.to_json)
+		self.assertEqual(i4.a, 0)
 		i4.a = 1
 		self.assertEqual(i4.a, 1)
 		self.assertEqual(i4.to_json(), "{\"a\": 1}")
 		self.assertEqual(i4.to_json(skip_none_field=True), "{\"a\": 1}")
 
 		i4 = Klass(1)
-		self.assertEqual(i4.a, None)
-		self.assertRaises(AttributeError, i4.to_json)
-		i4.a = 1
 		self.assertEqual(i4.a, 1)
 		self.assertEqual(i4.to_json(), "{\"a\": 1}")
 		self.assertEqual(i4.to_json(skip_none_field=True), "{\"a\": 1}")
 
 		i4 = Klass(None)
-		self.assertEqual(i4.a, None)
-		self.assertRaises(AttributeError, i4.to_json)
-		self.assertRaises(AttributeError, i4.to_json, skip_none_field=True)
+		self.assertEqual(i4.a, 0)
 
 	def test_default(self):
 
@@ -198,11 +187,6 @@ class VarTestCase(unittest.TestCase):
 		self.assertEqual(i5.to_json(), "{\"a\": 1}")
 		self.assertEqual(i5.to_json(skip_none_field=True), "{\"a\": 1}")
 
-		i5 = Klass(None)
-		self.assertEqual(i5.a, None)
-		self.assertEqual(i5.to_json(), "{\"a\": null}")
-		self.assertEqual(i5.to_json(skip_none_field=True), "{}")
-
 	def test_default_factory(self):
 
 		class Klass(Declared):
@@ -218,27 +202,17 @@ class VarTestCase(unittest.TestCase):
 		self.assertEqual(i6.to_json(), "{\"a\": 1}")
 		self.assertEqual(i6.to_json(skip_none_field=True), "{\"a\": 1}")
 
-		i6 = Klass(None)
-		self.assertEqual(i6.a, None)
-		self.assertEqual(i6.to_json(), "{\"a\": null}")
-		self.assertEqual(i6.to_json(skip_none_field=True), "{}")
-
 	def test_field_name(self):
 
 		class Klass(Declared):
 			a = var(int, field_name="aa")
 
-		self.assertRaises(AttributeError, Klass)
+		self.assertRaises(FieldRequiredError, Klass)
 
 		i7 = Klass(1)
 		self.assertEqual(i7.a, 1)
 		self.assertEqual(i7.to_json(), "{\"aa\": 1}")
 		self.assertEqual(i7.to_json(skip_none_field=True), "{\"aa\": 1}")
-
-		i7 = Klass(None)
-		self.assertEqual(i7.a, None)
-		self.assertEqual(i7.to_json(), "{\"aa\": null}")
-		self.assertEqual(i7.to_json(skip_none_field=True), "{}")
 
 
 class ComplexVarTestCase(unittest.TestCase):
@@ -248,15 +222,18 @@ class ComplexVarTestCase(unittest.TestCase):
 		class Klass(Declared):
 			a = var(int, required=False, init=False)
 
+			def __post_init__(self, **omits: Any):
+				self.a = omits.get("a", None)
+
 		i1 = Klass()
 		self.assertEqual(i1.a, None)
 		self.assertEqual(i1.to_json(), "{\"a\": null}")
 		self.assertEqual(i1.to_json(skip_none_field=True), "{}")
 
 		i1 = Klass(1)
-		self.assertEqual(i1.a, None)
-		self.assertEqual(i1.to_json(), "{\"a\": null}")
-		self.assertEqual(i1.to_json(skip_none_field=True), "{}")
+		self.assertEqual(i1.a, 1)
+		self.assertEqual(i1.to_json(), "{\"a\": 1}")
+		self.assertEqual(i1.to_json(skip_none_field=True), "{\"a\": 1}")
 
 		i1 = Klass(1)
 		i1.a = 10
@@ -290,6 +267,9 @@ class ComplexVarTestCase(unittest.TestCase):
 		class Klass(Declared):
 			a = var(int, required=False, init=False, ignore_serialize=True)
 
+			def __post_init__(self, **omits: Any):
+				self.a = omits.get("a", None)
+
 		i3 = Klass()
 		self.assertEqual(i3.a, None)
 		self.assertEqual(i3.to_json(), "{}")
@@ -302,7 +282,7 @@ class ComplexVarTestCase(unittest.TestCase):
 		self.assertEqual(i3.to_json(skip_none_field=True), "{}")
 
 		i3 = Klass(1)
-		self.assertEqual(i3.a, None)
+		self.assertEqual(i3.a, 1)
 		self.assertEqual(i3.to_json(), "{}")
 		self.assertEqual(i3.to_json(skip_none_field=True), "{}")
 
@@ -310,7 +290,3 @@ class ComplexVarTestCase(unittest.TestCase):
 		self.assertEqual(i3.a, None)
 		self.assertEqual(i3.to_json(), "{}")
 		self.assertEqual(i3.to_json(skip_none_field=True), "{}")
-
-	def test_default_default_factory(self):
-		""""""
-		self.assertRaises(ValueError, var, int, default="aa", default_factory=lambda: 10)

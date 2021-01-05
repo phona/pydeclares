@@ -1,7 +1,6 @@
 import re
 import unittest
 from xml.etree import ElementTree as ET
-from xml.parsers import expat
 
 from pydeclares import Declared, vec, pascalcase_var, var
 from pydeclares.marshals import json, xml

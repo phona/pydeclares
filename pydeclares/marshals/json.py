@@ -126,7 +126,10 @@ def unmarshal(typ, buf: JsonData, options: Options = _default_options):
 
 
 def _unmarshal(marshalable, data: Json, options: Options):
-    # type: (Union[variables.vec, variables.kv, Json, Type[declares.Declared]], Json, Options) -> Union[List, Dict, Json, declares.Declared]
+    # type: (Union[variables.vec, variables.kv, Json, Type[declares.Declared]], Json, Options) -> Union[List, Dict, Json, declares.Declared, None]
+    if data is None:
+        return None
+
     if isinstance(marshalable, variables.vec):
         assert isinstance(data, List)
         return [
@@ -165,7 +168,9 @@ def _unmarshal(marshalable, data: Json, options: Options):
 
 
 def _unmarshal_field(typ, field, value, options: Options):
-    if issubclass(typ, _Literal.__args__):  # type: ignore
+    if value is None:
+        return None
+    elif issubclass(typ, _Literal.__args__):  # type: ignore
         return value
     elif issubclass(typ, declares.Declared):
         return _unmarshal(typ, value, options)
@@ -219,7 +224,9 @@ def _marshal_declared(
 
 
 def _marshal_field(typ, field, value, options):
-    if issubclass_safe(typ, declares.Declared):
+    if value is None:
+        return None
+    elif issubclass_safe(typ, declares.Declared):
         return _marshal_declared(value, options)
     elif issubclass_safe(typ, List):
         return [_marshal_field(field.item_type, field, v, options) for v in value]

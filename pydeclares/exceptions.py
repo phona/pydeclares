@@ -1,0 +1,6 @@
+class FieldError(Exception):
+	...
+
+
+class FieldRequiredError(FieldError):
+	...

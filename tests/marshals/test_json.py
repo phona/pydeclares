@@ -4,18 +4,34 @@ from pydeclares.variables import vec, kv
 from pydeclares.marshals import json
 
 
-def test_marshal_literal():
+def test_marshal_literal_v1():
     class Struct(Declared):
         p0 = var(int)
         p1 = var(str)
         p2 = var(float)
         p3 = var(bool)
-        p4 = var(type(None))
 
-    _str = '{"p0": 1, "p1": "1", "p2": 1.1, "p3": false, "p4": null}'
+    _str = '{"p0": 1, "p1": "1", "p2": 1.1, "p3": false}'
     out = json.unmarshal(Struct, _str, json.Options())
     assert out.p0 == 1
     assert out.p1 == "1"
+
+    assert json.marshal(out, json.Options()) == _str
+
+
+def test_marshal_literal_v2():
+    class Inner(Declared):
+        p0 = var(int)
+        p1 = var(str)
+        p2 = var(float)
+        p3 = var(bool)
+
+    class Struct(Declared):
+        p0 = var(Inner, required=False)
+
+    _str = '{"p0": null}'
+    out = json.unmarshal(Struct, _str, json.Options())
+    assert out.p0 is None
 
     assert json.marshal(out, json.Options()) == _str
 
@@ -119,13 +135,23 @@ def test_marshal_kv_composition():
     assert json.marshal(out, json.Options()) == _str
 
 
-def test_marshal_compose_vec():
+def test_marshal_compose_vec_v1():
     class Struct(Declared):
         p0 = vec(int)
 
     _str = '{"p0": [1, 2, 3]}'
     out = json.unmarshal(Struct, _str, json.Options())
     assert out == Struct([1, 2, 3])
+    assert json.marshal(out, options=json.Options()) == _str
+
+
+def test_marshal_compose_vec_v2():
+    class Struct(Declared):
+        p0 = vec(int, required=False)
+
+    _str = '{"p0": null}'
+    out = json.unmarshal(Struct, _str, json.Options())
+    assert out == Struct()
     assert json.marshal(out, options=json.Options()) == _str
 
 
@@ -163,4 +189,14 @@ def test_marshal_enum():
     _str = '{"p0": 0}'
     out = json.unmarshal(Struct, _str, json.Options())
     assert out == Struct(p0=Fruit.Apple)
+    assert json.marshal(out, json.Options()) == _str
+
+
+def test_marshal_kv_compositions():
+    class Struct(Declared):
+        p0 = kv(str, int, required=False)
+
+    _str = '{"p0": null}'
+    out = json.unmarshal(Struct, _str, json.Options())
+    assert out == Struct()
     assert json.marshal(out, json.Options()) == _str

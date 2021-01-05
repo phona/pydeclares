@@ -78,11 +78,11 @@ def _unmarshal_declared(typ, elem, options):
     for field in declares.fields(typ):
         if field.as_xml_attr:
             field_value = elem.get(field.field_name, MISSING)
-            if field_value is None:
+            if field_value is None or field_value == "":
                 field_value = MISSING
         elif field.as_xml_text:
             field_value = elem.text
-            if field_value is None:
+            if field_value is None or field_value == "":
                 field_value = MISSING
         elif isinstance(field, variables.vec):
             subs = elem.findall(field.field_name)
@@ -155,7 +155,12 @@ def _marshal_declared(declared, options):
             val = getattr(declared, field.name, MISSING)
             if val is MISSING:
                 continue
-            elem.append(_marshal_field(field, val, options))
+            elif val is None:
+                if not options.skip_none_field:
+                    sub = ET.Element(field.field_name)
+                    elem.append(sub)
+            else:
+                elem.append(_marshal_field(field, val, options))
 
     return elem
 

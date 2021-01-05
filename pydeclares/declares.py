@@ -18,8 +18,8 @@ from xml.etree import ElementTree as ET
 
 from pydeclares import variables
 from pydeclares import variables as vars
-from pydeclares.codecs import CodecNotFoundError, encode
 from pydeclares.defines import MISSING, JsonData
+from pydeclares.exceptions import FieldRequiredError
 from pydeclares.marshals import json, xml
 from pydeclares.utils import isinstance_safe, xml_prettify
 
@@ -87,11 +87,6 @@ class Declared(metaclass=BaseDeclared):
 
             if field_value is MISSING:
                 field_value = field.make_default()
-                if field_value is None and field.required:
-                    raise AttributeError(
-                        f"field `{field.name}` is required. if you doesn't want to init this variable in initializer, "
-                        f"please set `init` argument to False for this variable."
-                    )
 
             # set `init` to False but `required` is True, that mean is this variable must be init in later
             # otherwise seiralize will be failed.
@@ -107,12 +102,26 @@ class Declared(metaclass=BaseDeclared):
         self.__post_init__(**omits)
         self._is_empty = False
 
-        for k in omit_fields:
-            self._setattr(k, getattr(self, k.name, MISSING))
+        for field in omit_fields:
+            value = getattr(self, field.name, MISSING)
+            if value is MISSING:
+                raise FieldRequiredError(
+                    f"field `{field.name}` is marked that initialize by user on __post_init__ method"
+                    " but it has not been seted on there"
+                )
+
+            self._setattr(field, value)
 
     def _setattr(self, field, field_value):
-        # type: (variables.Var, Any) -> None
-        if field_value is not None and not field.type_checking(field_value):
+        # type: (variables.Var, Optional[Any]) -> None
+        if field_value is None and field.required:
+            raise FieldRequiredError(
+                f"field `{field.name}` is required. if you couldn't know whether it is existed or not, "
+                f"set a default value or default factory function to this field for erase this error."
+            )
+
+        can_skip_field_checking = field_value is None and not field.required
+        if not can_skip_field_checking and not field.type_checking(field_value):
             field_value = field.cast_it(field_value)
         setattr(self, field.name, field_value)
 
@@ -163,14 +172,6 @@ class Declared(metaclass=BaseDeclared):
                 continue
 
             field_value = getattr(self, field.name, MISSING)
-            if field_value is MISSING:
-                field_value = field.make_default()
-                if field_value is None:
-                    if not field.required:
-                        continue
-                    else:
-                        raise AttributeError(f"field {field.name} is required.")
-
             if skip_none_field and field_value is None:
                 continue
 
@@ -190,8 +191,6 @@ class Declared(metaclass=BaseDeclared):
         if cls.has_nest_declared_class():
             raise ValueError("can't deserialize to nested declared class.")
 
-        cls.from_form_data
-
         return cls.from_dict(dict(urlparse.parse_qsl(form_data)), True)  # type: ignore
 
     def to_form_data(self, skip_none_field=False):
@@ -200,12 +199,6 @@ class Declared(metaclass=BaseDeclared):
             raise ValueError("can't serialize with nested declared class.")
 
         data = self.to_dict(skip_none_field, True)
-        for k, v in data.items():
-            try:
-                data[k] = encode(v)
-            except CodecNotFoundError:
-                pass
-
         return "&".join([f"{k}={v}" for k, v in data.items()])
 
     @classmethod
