@@ -1,52 +1,7 @@
 import inspect
 import re
-from typing import (
-    Any,
-    Callable,
-    Generic,
-    Iterable,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-    overload,
-)
+from typing import Any, Tuple, Union, overload
 from xml.etree.ElementTree import Element
-
-
-_T = TypeVar("_T")
-
-
-class Strategy(Generic[_T]):
-    def __init__(self, func: Callable[..., _T]):
-        self.func = func
-
-    def match_type(self, typ: Type) -> Callable[..., _T]:
-        ...
-
-    def match_interface(self, inf: Type) -> Callable[..., _T]:
-        ...
-
-
-def strategy(func: Callable[..., _T]) -> Strategy[_T]:
-    ...
-
-
-@strategy
-def test():
-    return 1
-
-
-def tuple_str(obj_name: str, fields: Iterable[str]):
-    # Return a string representing each field of obj_name as a tuple
-    # member.  So, if fields is ['x', 'y'] and obj_name is "self",
-    # return "(self.x,self.y)".
-
-    # Special case for the 0-tuple.
-    if not fields:
-        return "()"
-    # Note the trailing comma, needed if this turns out to be a 1-tuple.
-    return f'({",".join([f"{obj_name}.{f.name}" for f in fields])},)'
 
 
 @overload

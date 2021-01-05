@@ -1,5 +1,5 @@
 from collections import UserList
-from typing import Any, Dict, List, Optional, Type, TypeVar, Union, overload
+from typing import Any, Dict, Iterable, List, Optional, Type, TypeVar, Union, overload
 from xml.etree import ElementTree as ET
 
 from pydeclares import declares, variables
@@ -75,6 +75,7 @@ def unmarshal(marshalable, elem, options=_default_options):
 def _unmarshal_declared(typ, elem, options):
     # type: (Type[_DT], ET.Element, Options) -> _DT
     init_kwargs: Dict[str, Any] = {}
+    field_value: Any
     for field in declares.fields(typ):
         if field.as_xml_attr:
             field_value = elem.get(field.field_name, MISSING)
@@ -99,6 +100,8 @@ def _unmarshal_declared(typ, elem, options):
                 field_value = MISSING
 
         if field_value != MISSING:
+            if field.serializer:
+                field_value = field.serializer.to_internal_value(field_value)
             init_kwargs[field.name] = field_value
 
     return typ(**init_kwargs)
@@ -124,9 +127,7 @@ def _marshal_declared(declared, options):
             continue
 
         if field.as_xml_attr:
-            attr = getattr(declared, field.name, MISSING)
-            if attr is MISSING:
-                continue
+            attr = getattr(declared, field.name)
             if attr is None:
                 if options.skip_none_field:
                     continue
@@ -135,9 +136,7 @@ def _marshal_declared(declared, options):
 
             elem.set(field.field_name, _marshal_text_field(field, attr))
         elif field.as_xml_text:
-            text = getattr(declared, field.name, MISSING)
-            if text is MISSING:
-                continue
+            text = getattr(declared, field.name)
             if text is None:
                 if options.skip_none_field:
                     continue
@@ -146,16 +145,11 @@ def _marshal_declared(declared, options):
 
             elem.text = _marshal_text_field(field, text)
         elif isinstance_safe(field, variables.vec):
-            li = getattr(declared, field.name, MISSING)
-            if li is MISSING:
-                continue
-
+            li = getattr(declared, field.name)
             elem.extend(_marshal_field(field, i, options) for i in li)
         else:
-            val = getattr(declared, field.name, MISSING)
-            if val is MISSING:
-                continue
-            elif val is None:
+            val = getattr(declared, field.name)
+            if val is None:
                 if not options.skip_none_field:
                     sub = ET.Element(field.field_name)
                     elem.append(sub)
@@ -167,15 +161,15 @@ def _marshal_declared(declared, options):
 
 def _marshal_text_field(field, value):
     # type: (variables.Var[Any, str], Any) -> str
+    if field.serializer:
+        return field.serializer.to_representation(value)
+
     if issubclass(field.type_, _Literal.__args__):  # type: ignore
         return str(value)
 
-    if not field.serializer:
-        raise MarshalError(
-            f"can't marshal property `{field.name}` which are `{field.type_!r}`"
-        )
-
-    return field.serializer.to_representation(value)
+    raise MarshalError(
+        f"can't marshal property `{field.name}` which are `{field.type_!r}`"
+    )
 
 
 def _marshal_field(field, value, options):

@@ -1,6 +1,6 @@
 import json
 from collections import UserDict, UserList
-from typing import Dict, List, Type, TypeVar, Union, overload
+from typing import Any, Dict, List, Type, TypeVar, Union, overload
 
 from pydeclares import declares, variables
 from pydeclares.defines import MISSING, Json, JsonData
@@ -168,17 +168,16 @@ def _unmarshal(marshalable, data: Json, options: Options):
 
 
 def _unmarshal_field(typ, field, value, options: Options):
+    # type: (type, Union[variables.Var, variables.vec, variables.kv], Any, Options) -> Any
     if value is None:
         return None
-    elif issubclass(typ, _Literal.__args__):  # type: ignore
-        return value
     elif issubclass(typ, declares.Declared):
         return _unmarshal(typ, value, options)
     elif issubclass(typ, List):
-        assert isinstance(value, List)
+        assert isinstance(value, List) and isinstance(field, variables.vec)
         return [_unmarshal_field(field.item_type, field, i, options) for i in value]
     elif issubclass(typ, Dict):
-        assert isinstance(value, Dict)
+        assert isinstance(value, Dict) and isinstance(field, variables.kv)
         return {
             _unmarshal_field(field.k_type, field, k, options): _unmarshal_field(
                 field.v_type, field, v, options
@@ -186,12 +185,10 @@ def _unmarshal_field(typ, field, value, options: Options):
             for k, v in value.items()
         }
 
-    if not field.serializer:
-        raise MarshalError(
-            f"can't unmarshal `{type(value)!r}` to property `{field.name}` which are `{typ!r}`"
-        )
+    if field.serializer:
+        value = field.serializer.to_internal_value(value)
 
-    return field.serializer.to_internal_value(value)
+    return value
 
 
 def marshal(
@@ -237,10 +234,11 @@ def _marshal_field(typ, field, value, options):
             )
             for k, v in value.items()
         }
-    elif issubclass_safe(typ, _Literal.__args__):  # type: ignore
-        return value
 
-    if not field.serializer:
+    if field.serializer:
+        value = field.serializer.to_representation(value)
+
+    if not isinstance(value, Json.__args__):  # type: ignore
         raise MarshalError(f"can't marshal property `{field.name}` which are `{typ!r}`")
 
-    return field.serializer.to_representation(value)
+    return value

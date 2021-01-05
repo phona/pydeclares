@@ -137,11 +137,6 @@ class Var(Generic[_GT, _ST]):
     def type_(self) -> Type[_GT]:
         raise NotImplementedError
 
-    @property
-    @abstractmethod
-    def construct(self) -> Callable[..., _GT]:
-        raise NotImplementedError
-
     @abstractmethod
     def cast_it(self, obj: _ST) -> _GT:
         raise NotImplementedError
@@ -176,10 +171,6 @@ class Int(Var[int, SupportsInt]):
     def type_(self):
         return int
 
-    @property
-    def construct(self):
-        return int
-
     def cast_it(self, obj: SupportsInt) -> int:
         return int(obj)
 
@@ -187,10 +178,6 @@ class Int(Var[int, SupportsInt]):
 class Float(Var[float, SupportsFloat]):
     @property
     def type_(self):
-        return float
-
-    @property
-    def construct(self):
         return float
 
     def cast_it(self, obj: SupportsFloat) -> float:
@@ -202,10 +189,6 @@ class Complex(Var[complex, SupportsComplex]):
     def type_(self):
         return complex
 
-    @property
-    def construct(self):
-        return complex
-
     def cast_it(self, obj: SupportsComplex) -> complex:
         return complex(obj)
 
@@ -213,10 +196,6 @@ class Complex(Var[complex, SupportsComplex]):
 class Bytes(Var[bytes, SupportsBytes]):
     @property
     def type_(self):
-        return bytes
-
-    @property
-    def construct(self):
         return bytes
 
     def cast_it(self, obj: SupportsBytes) -> bytes:
@@ -231,10 +210,6 @@ class SupportsStr(Protocol):
 class String(Var[str, SupportsStr]):
     @property
     def type_(self):
-        return str
-
-    @property
-    def construct(self):
         return str
 
     def cast_it(self, obj: SupportsStr) -> Text:
@@ -265,10 +240,6 @@ class var(Var[_GT, Union[Castable[_GT], _GT]]):
 
     @property
     def type_(self):
-        return self._type
-
-    @property
-    def construct(self):
         return self._type
 
     def cast_it(self, obj: Union[Castable[_GT], _GT]) -> _GT:
@@ -319,10 +290,6 @@ class kv(Var[Mapping[_K, _V], Castable[Mapping[_K, _V]]]):
     def type_(self) -> Type[Mapping[_K, _V]]:
         return Dict  # type: ignore
 
-    @property
-    def construct(self) -> Type[Dict[_K, _V]]:
-        return dict  # type: ignore
-
     def cast_it(self, obj: Castable[Mapping[_K, _V]]) -> Mapping[_K, _V]:
         try:
             return obj.cast()
@@ -360,10 +327,6 @@ class vec(Var[List[_GT], Castable[Iterable[_GT]]]):
     @property
     def type_(self) -> Type[List[_GT]]:
         return List  # type: ignore
-
-    @property
-    def construct(self) -> Type[List[_GT]]:
-        return list  # type: ignore
 
     def type_checking(self, obj: Any) -> bool:
         if not isinstance(obj, Iterable):
@@ -425,11 +388,9 @@ _object_serializer = _ObjectSerializer()
 
 
 def compatible_var(
-    type_: Union[Type[Any], vec[Any]], *args: Any, **kwargs: Any
+    type_: Type[Any], *args: Any, **kwargs: Any
 ) -> Var[Any, Any]:
-    if isinstance(type_, vec):
-        return type_
-    elif issubclass_safe(type_, List):
+    if issubclass_safe(type_, List):
         kwargs.setdefault("serializer", _object_serializer)
         return vec(object, *args, **kwargs)
     elif issubclass_safe(type_, Dict):

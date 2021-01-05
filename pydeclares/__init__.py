@@ -8,7 +8,7 @@ var = compatible_var
 pascalcase_var = partial(var, naming_style=NamingStyle.pascalcase)
 camelcase_var = partial(var, naming_style=NamingStyle.camelcase)
 
-version = "0.6.3"
+version = "1.0.0"
 
 __all__ = [
     "Declared",

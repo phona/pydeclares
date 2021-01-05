@@ -15,6 +15,10 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/phona/pydeclares",
     packages=setuptools.find_packages(),
+    extras_require={
+        'typing_extensions': ['typing-extensions>=3.7.2'],
+    },
+    python_requires='>=3.6',
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

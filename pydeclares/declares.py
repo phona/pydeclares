@@ -44,13 +44,6 @@ class BaseDeclared(type):
                 meta_vars.update(base_meta_vars)
                 fields.extend(base_meta_vars.keys())
 
-            for k, v in base.__dict__.items():
-                if isinstance_safe(v, Var):
-                    fields.append(k)
-                    var = v
-                    var.name = k
-                    meta_vars[k] = var
-
         for key in list(namespace.keys()):
             if isinstance(namespace[key], Var):
                 if key not in fields:
@@ -348,7 +341,6 @@ def fields(class_or_instance: Union[Type[_DT], _DT]) -> Tuple[Var[Any, Any]]:
     # order, so the order of the tuple is as the fields were defined.
     out = []
     for f in fields:
-        var = meta_vars.get(f, None)
-        if var:
-            out.append(var)
+        var = meta_vars[f]
+        out.append(var)
     return tuple(out)

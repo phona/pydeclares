@@ -8,3 +8,5 @@ build
 PyDeclares.egg-info
 dist
 Pipfile.lock
+htmlcov
+.coverage

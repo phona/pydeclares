@@ -1,7 +1,27 @@
 from enum import Enum
-from pydeclares import var, Declared
-from pydeclares.variables import vec, kv
+from typing import Any, Optional, Type, TypeVar
+
+from pydeclares import Declared, var
 from pydeclares.marshals import json
+from pydeclares.variables import kv, vec
+
+_T = TypeVar("_T", bound=Any)
+
+
+def unmarshal(
+    unmarshalable: Type[_T], str_: str, options: Optional[json.Options] = None
+) -> _T:
+    if options:
+        return json.unmarshal(unmarshalable, str_, json.Options())
+    else:
+        return json.unmarshal(unmarshalable, str_)
+
+
+def marshal(marshalable: Any, options: Optional[json.Options] = None) -> str:
+    if options:
+        return json.marshal(marshalable, options)
+    else:
+        return json.marshal(marshalable)
 
 
 def test_marshal_literal_v1():
@@ -200,3 +220,19 @@ def test_marshal_kv_compositions():
     out = json.unmarshal(Struct, _str, json.Options())
     assert out == Struct()
     assert json.marshal(out, json.Options()) == _str
+
+
+def test_unmarshal_generic_list():
+    Li = var(list)
+    _str = "[1, \"2\", 3.1]"
+    li = unmarshal(Li, _str)  # type: ignore
+    assert li == [1, "2", 3.1]
+    assert marshal(li) == _str
+
+
+def test_unmarshal_generic_dict():
+    Di = var(dict)
+    _str = '{"a": 1, "b": "1", "c": 1.1}'
+    di = unmarshal(Di, _str)  # type: ignore
+    assert di == {"a": 1, "b": "1", "c": 1.1}
+    assert marshal(di) == _str

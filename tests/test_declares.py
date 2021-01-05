@@ -1,10 +1,11 @@
-from pydeclares.exceptions import FieldRequiredError
 import unittest
+import pytest
 from datetime import datetime
 from enum import Enum
 from typing import List
 
 from pydeclares import Declared, NamingStyle, var, vec
+from pydeclares.exceptions import FieldRequiredError
 
 
 class InnerJSONTestClass(Declared):
@@ -542,3 +543,61 @@ def test_declared_dict_v2_castable_type():
 
     s = Struct.from_dict({"p0": ["1", "2", "3"]})
     assert s.p0 == [1, 2, 3]
+
+
+def test_complex_fields():
+    class Struct(Declared):
+        p0 = var(bytes)
+        p1 = var(complex)
+
+    expect = Struct(b"123", complex(1, 1))
+    assert Struct([49, 50, 51], 1 + 1j) == expect
+
+
+def test_object_fields():
+    class Struct(Declared):
+        p0 = var(list)
+
+    out = Struct([1, "3", 1.1])
+    assert out.p0 == [1, "3", 1.1]
+
+
+def test_inheritance():
+    class Base(Declared):
+        p0 = var(int)
+
+    class Struct(Base):
+        p1 = var(int)
+
+    out = Struct(p0=1, p1=1)
+    assert out.p0 == 1
+    assert out.p1 == 1
+
+
+def test_dict_v1():
+    class Struct(Declared):
+        p0 = var(int)
+        p1 = var(int)
+
+    out = Struct(1, 1)
+    assert out.to_dict() == {"p0": 1, "p1": 1}
+    assert Struct.from_dict({"p0": 1, "p1": 1}) == out
+
+
+def test_dict_v2():
+    class Struct(Declared):
+        p0 = var(int)
+        p1 = var(int)
+
+    with pytest.raises(FieldRequiredError):
+        Struct.from_dict({"p0": 1})
+
+
+def test_dict_v3():
+    class Struct(Declared):
+        p0 = var(int)
+        p1 = var(int, default=2)
+
+    out = Struct.from_dict({"p0": 1})
+    assert out.to_dict() == {"p0": 1, "p1": 2}
+    assert out.to_dict() == {"p0": 1, "p1": 2}
