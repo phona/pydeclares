@@ -126,45 +126,23 @@ def unmarshal(typ, buf: JsonData, options: Options = _default_options):
 
 
 def _unmarshal(marshalable, data: Json, options: Options):
-    # type: (Union[variables.vec, variables.kv, Json, Type[declares.Declared]], Json, Options) -> Union[List, Dict, Json, declares.Declared, None]
-    if data is None:
-        return None
+    # type: (Type[declares.Declared], Json, Options) -> declares.Declared
+    assert isinstance(data, Dict)
+    if not data:
+        return marshalable()
 
-    if isinstance(marshalable, variables.vec):
-        assert isinstance(data, List)
-        return [
-            _unmarshal_field(marshalable.item_type, marshalable, i, options)
-            for i in data
-        ]
-    elif isinstance(marshalable, variables.kv):
-        assert isinstance(data, Dict)
-        return {
-            _unmarshal_field(
-                marshalable.k_type, marshalable, k, options
-            ): _unmarshal_field(marshalable.v_type, marshalable, v, options)
-            for k, v in data.items()
-        }
-    elif isinstance(marshalable, Json.__args__):  # type: ignore
-        return data
-    elif issubclass(marshalable, declares.Declared):  # type: ignore
-        assert isinstance(data, Dict)
-        if not data:
-            return marshalable()
+    init_kwargs = {}
+    for field in declares.fields(marshalable):
+        field_value = data.get(field.field_name, MISSING)
+        if field_value is MISSING:
+            field_value = field.make_default()
 
-        init_kwargs = {}
-        for field in declares.fields(marshalable):
-            field_value = data.get(field.field_name, MISSING)
-            if field_value is MISSING:
-                field_value = field.make_default()
+        if not field.type_checking(field_value):
+            field_value = _unmarshal_field(field.type_, field, field_value, options)
 
-            if not field.type_checking(field_value):
-                field_value = _unmarshal_field(field.type_, field, field_value, options)
+        init_kwargs[field.name] = field_value
 
-            init_kwargs[field.name] = field_value
-
-        return marshalable(**init_kwargs)
-
-    raise MarshalError(f"type {marshalable} is not unmarshalable")
+    return marshalable(**init_kwargs)
 
 
 def _unmarshal_field(typ, field, value, options: Options):

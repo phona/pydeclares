@@ -1,5 +1,10 @@
+from datetime import datetime
 from enum import Enum
+from pydeclares.exceptions import FieldRequiredError
+from pydeclares.marshals.exceptions import MarshalError
 from typing import Any, Optional, Type, TypeVar
+
+import pytest
 
 from pydeclares import Declared, var
 from pydeclares.marshals import json
@@ -224,7 +229,7 @@ def test_marshal_kv_compositions():
 
 def test_unmarshal_generic_list():
     Li = var(list)
-    _str = "[1, \"2\", 3.1]"
+    _str = '[1, "2", 3.1]'
     li = unmarshal(Li, _str)  # type: ignore
     assert li == [1, "2", 3.1]
     assert marshal(li) == _str
@@ -236,3 +241,37 @@ def test_unmarshal_generic_dict():
     di = unmarshal(Di, _str)  # type: ignore
     assert di == {"a": 1, "b": "1", "c": 1.1}
     assert marshal(di) == _str
+
+
+def test_unmarshal_not_required():
+    class Struct(Declared):
+        p0 = var(int, required=False)
+
+    out = unmarshal(Struct, "{}")
+    assert out.p0 is None
+
+
+def test_unmarshal_empty_create():
+    class Struct(Declared):
+        p0 = var(int)
+
+    with pytest.raises(FieldRequiredError):
+        unmarshal(Struct, "{}")
+
+
+def test_unmarshal_default():
+    class Struct(Declared):
+        p0 = var(int)
+        p1 = var(int, default=1)
+
+    out = unmarshal(Struct, '{"p0": 1}')
+    assert out.p1 == 1
+
+
+def test_umarshal_not_json_value():
+    class Struct(Declared):
+        p0 = var(datetime)
+
+    out = Struct(datetime.now())
+    with pytest.raises(MarshalError):
+        marshal(out)
