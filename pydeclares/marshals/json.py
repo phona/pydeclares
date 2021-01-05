@@ -2,13 +2,13 @@ import json
 from collections import UserDict, UserList
 from typing import Any, Dict, List, Type, TypeVar, Union, overload
 
+from typing_extensions import Protocol, runtime_checkable
+
 from pydeclares import declares, variables
 from pydeclares.defines import MISSING, Json, JsonData
 from pydeclares.marshals.exceptions import MarshalError
 from pydeclares.utils import issubclass_safe
-from typing_extensions import Protocol, runtime_checkable
 
-_Literal = Union[str, int, float, bool, None]
 _T = TypeVar("_T")
 _K = TypeVar("_K")
 _V = TypeVar("_V")
@@ -56,9 +56,7 @@ class KV(Dict[_K, _V], UserDict):
     def marshal(self, options: "Options"):
         return json.dumps(
             {
-                _marshal_field(self.kv.k_type, self.kv, k, options): _marshal_field(
-                    self.kv.v_type, self.kv, v, options
-                )
+                _marshal_field(self.kv.k_type, self.kv, k, options): _marshal_field(self.kv.v_type, self.kv, v, options)
                 for k, v in self.items()
             },
             **options.json_dumps,
@@ -157,9 +155,7 @@ def _unmarshal_field(typ, field, value, options: Options):
     elif issubclass(typ, Dict):
         assert isinstance(value, Dict) and isinstance(field, variables.kv)
         return {
-            _unmarshal_field(field.k_type, field, k, options): _unmarshal_field(
-                field.v_type, field, v, options
-            )
+            _unmarshal_field(field.k_type, field, k, options): _unmarshal_field(field.v_type, field, v, options)
             for k, v in value.items()
         }
 
@@ -180,17 +176,13 @@ def marshal(
         return unmarshalable_or_declared.marshal(options)
 
 
-def _marshal_declared(
-    declared: "declares.Declared", options: Options
-) -> Dict[str, Json]:
+def _marshal_declared(declared: "declares.Declared", options: Options) -> Dict[str, Json]:
     kv = {}
     for field in declares.fields(declared):
         if field.ignore_serialize:
             continue
 
-        value = _marshal_field(
-            field.type_, field, getattr(declared, field.name), options
-        )
+        value = _marshal_field(field.type_, field, getattr(declared, field.name), options)
         if value is None and options.skip_none_field:
             continue
 
@@ -207,9 +199,7 @@ def _marshal_field(typ, field, value, options):
         return [_marshal_field(field.item_type, field, v, options) for v in value]
     elif issubclass_safe(typ, Dict):
         return {
-            _marshal_field(field.k_type, field, k, options): _marshal_field(
-                field.v_type, field, v, options
-            )
+            _marshal_field(field.k_type, field, k, options): _marshal_field(field.v_type, field, v, options)
             for k, v in value.items()
         }
 

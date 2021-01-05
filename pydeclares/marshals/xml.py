@@ -1,12 +1,13 @@
 from collections import UserList
-from typing import Any, Dict, Iterable, List, Optional, Type, TypeVar, Union, overload
+from typing import Any, Dict, List, Optional, Type, TypeVar, Union, overload
 from xml.etree import ElementTree as ET
+
+from typing_extensions import Protocol, runtime_checkable
 
 from pydeclares import declares, variables
 from pydeclares.defines import MISSING
 from pydeclares.marshals.exceptions import MarshalError
 from pydeclares.utils import isinstance_safe, issubclass_safe
-from typing_extensions import Protocol, runtime_checkable
 
 _Literal = Union[str, int, float, bool, None]
 _T = TypeVar("_T")
@@ -18,9 +19,7 @@ class Vec(List[_T], UserList):
         # type: (str, variables.vec) -> None
         self.vec = vec
         self.tag = tag
-        self.item_var = variables.compatible_var(
-            vec.item_type, field_name=vec.field_name
-        )
+        self.item_var = variables.compatible_var(vec.item_type, field_name=vec.field_name)
 
     def marshal(self, options):
         # type: (Options) -> ET.Element
@@ -117,11 +116,7 @@ def marshal(marshalable_or_declared, options=_default_options):
 
 def _marshal_declared(declared, options):
     # type: (declares.Declared, Options) -> ET.Element
-    elem = ET.Element(
-        declared.__xml_tag_name__
-        if declared.__xml_tag_name__
-        else declared.__class__.__name__.lower()
-    )
+    elem = ET.Element(declared.__xml_tag_name__ if declared.__xml_tag_name__ else declared.__class__.__name__.lower())
     for field in declares.fields(declared):
         if field.ignore_serialize:
             continue
@@ -167,9 +162,7 @@ def _marshal_text_field(field, value):
     if issubclass(field.type_, _Literal.__args__):  # type: ignore
         return str(value)
 
-    raise MarshalError(
-        f"can't marshal property `{field.name}` which are `{field.type_!r}`"
-    )
+    raise MarshalError(f"can't marshal property `{field.name}` which are `{field.type_!r}`")
 
 
 def _marshal_field(field, value, options):

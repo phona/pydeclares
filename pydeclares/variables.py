@@ -84,7 +84,8 @@ class Var(Generic[_GT, _ST]):
         :param default_factory: a callable object that can return a Type[A] object, as same as default parameter
                                 but it is more flexible.
 
-        :param naming_style: a callable object, that can change naming style without redefined field name by `field_name` variable
+        :param naming_style: a callable object, that can change naming style without redefined field name by
+                            `field_name` variable
 
         :param as_xml_attr: a bool object, to declare one field as a xml attribute container
 
@@ -92,9 +93,10 @@ class Var(Generic[_GT, _ST]):
 
         :param ignore_serialize: a bool object, if it is True then will omit in serialize.
 
-        :param init: a bool object, the parameter determines whether this variable will be initialize by default initializer.
-                    if it is False, then do not initialize with default initializer for this variable, and you must set attribute
-                    in other place otherwise there are AttributeError raised in serializing.
+        :param init: a bool object, the parameter determines whether this variable will be initialize by default
+                     initializer. if it is False, then do not initialize with default initializer for this
+                     variable, and you must set attribute in other place otherwise there are AttributeError
+                     raised in serializing.
         """
         self.name = ""
         self._field_name = field_name
@@ -387,9 +389,7 @@ class _ObjectSerializer:
 _object_serializer = _ObjectSerializer()
 
 
-def compatible_var(
-    type_: Type[Any], *args: Any, **kwargs: Any
-) -> Var[Any, Any]:
+def compatible_var(type_: Type[Any], *args: Any, **kwargs: Any) -> Var[Any, Any]:
     if issubclass_safe(type_, List):
         kwargs.setdefault("serializer", _object_serializer)
         return vec(object, *args, **kwargs)

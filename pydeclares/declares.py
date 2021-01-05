@@ -1,23 +1,10 @@
 import urllib.parse as urlparse
 from json.decoder import JSONDecoder
 from json.encoder import JSONEncoder
-from typing import (
-    Any,
-    Callable,
-    ClassVar,
-    Dict,
-    List,
-    Optional,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-    overload,
-)
+from typing import Any, Callable, ClassVar, Dict, List, Optional, Tuple, Type, TypeVar, Union, overload
 from xml.etree import ElementTree as ET
 
-from pydeclares import variables
-from pydeclares import variables as vars
+from pydeclares import variables, variables as vars
 from pydeclares.defines import MISSING, JsonData
 from pydeclares.exceptions import FieldRequiredError
 from pydeclares.marshals import json, xml
@@ -303,10 +290,7 @@ class Declared(metaclass=BaseDeclared):
         return not self._is_empty
 
     def __str__(self):
-        args = [
-            f"{field_name}={str(getattr(self, field_name, 'missing'))}"
-            for field_name in self.fields
-        ]
+        args = [f"{field_name}={str(getattr(self, field_name, 'missing'))}" for field_name in self.fields]
         return f"{self.__class__.__name__}({', '.join(args)})"
 
     def __eq__(self, other: "Declared"):

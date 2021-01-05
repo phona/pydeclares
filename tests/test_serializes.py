@@ -2,9 +2,10 @@ import re
 import unittest
 from xml.etree import ElementTree as ET
 
-from pydeclares import Declared, vec, pascalcase_var, var
-from pydeclares.marshals import json, xml
 from xmlformatter import Formatter
+
+from pydeclares import Declared, pascalcase_var, var, vec
+from pydeclares.marshals import json, xml
 
 _xml_formatter = Formatter()
 
@@ -55,7 +56,10 @@ class JSONSerializeTestCase(unittest.TestCase):
             age = var(int)
             home = vec(Home)
 
-        data = '{"name": "Tom", "age": 18, "home": [{"location": "England"}, {"location": "China"}, {"location": "America"}]}'
+        data = (
+            '{"name": "Tom", "age": 18, "home": [{"location": "England"}, {"location": "China"}, '
+            '{"location": "America"}]}'
+        )
         person = Person.from_json(data)
         self.assertEqual(person.to_json(), data)
 
@@ -169,13 +173,21 @@ class XmlSerializeTestCase(unittest.TestCase):
         data = xml.unmarshal(Data, ET.XML(xml_string))
         self.assertEqual(
             ET.tostring(xml.marshal(data, xml.Options(True))).decode(),
-            '<data><country name="Liechtenstein"><rank>1</rank><year>2008</year><gdppc>141100</gdppc><neighbor direction="E" name="Austria" /></country><country name="Singapore"><rank>4</rank><year>2011</year><gdppc>59900</gdppc><neighbor direction="N" name="Malaysia" /></country><country name="Panama"><rank>68</rank><year>2011</year><gdppc>13600</gdppc><neighbor direction="W" name="Costa Rica" /></country></data>',
+            '<data><country name="Liechtenstein"><rank>1</rank><year>2008</year><gdppc>141100</gdppc>'
+            '<neighbor direction="E" name="Austria" /></country><country name="Singapore"><rank>4</rank>'
+            '<year>2011</year><gdppc>59900</gdppc><neighbor direction="N" name="Malaysia" /></country>'
+            '<country name="Panama"><rank>68</rank><year>2011</year><gdppc>13600</gdppc>'
+            '<neighbor direction="W" name="Costa Rica" /></country></data>',
         )
         v = json.Vec(data.vec)
         v.extend(data)
         self.assertEqual(
             json.marshal(v),
-            '[{"rank": "1", "year": 2008, "gdppc": 141100, "name": "Liechtenstein", "neighbor": {"name": "Austria", "direction": "E"}}, {"rank": "4", "year": 2011, "gdppc": 59900, "name": "Singapore", "neighbor": {"name": "Malaysia", "direction": "N"}}, {"rank": "68", "year": 2011, "gdppc": 13600, "name": "Panama", "neighbor": {"name": "Costa Rica", "direction": "W"}}]',
+            '[{"rank": "1", "year": 2008, "gdppc": 141100, "name": "Liechtenstein", '
+            '"neighbor": {"name": "Austria", "direction": "E"}}, {"rank": "4", "year": 2011, '
+            '"gdppc": 59900, "name": "Singapore", "neighbor": {"name": "Malaysia", "direction": "N"}}, '
+            '{"rank": "68", "year": 2011, "gdppc": 13600, "name": "Panama", "neighbor": '
+            '{"name": "Costa Rica", "direction": "W"}}]',
         )
 
     def test_other_simple_use(self):
@@ -215,18 +227,36 @@ class XmlSerializeTestCase(unittest.TestCase):
         Resource = vec(Style, field_name="style")
         data = xml.unmarshal(Resource, ET.XML(xml_string))
         assert len(data) == 5
-        assert format_xml(
-            ET.tostring(xml.marshal(data, xml.Options(True))).decode()
-        ) == format_xml(xml_string)
+        assert format_xml(ET.tostring(xml.marshal(data, xml.Options(True))).decode()) == format_xml(xml_string)
         v = json.Vec(data.vec)
         v.extend(data)
         assert (
-            json.marshal(v)
-            == '[{"name": "AppTheme", "parent": "Theme.AppCompat.Light.DarkActionBar", "item": [{"name": "colorPrimary", "text": "@color/colorPrimary"}, {"name": "colorPrimaryDark", "text": "@color/colorPrimaryDark"}, {"name": "colorAccent", "text": "@color/colorAccent"}]}, {"name": "AppTheme.NoActionBar", "parent": null, "item": [{"name": "windowActionBar", "text": "false"}, {"name": "windowNoTitle", "text": "true"}]}, {"name": "AppTheme.AppBarOverlay", "parent": "ThemeOverlay.AppCompat.Dark.ActionBar", "item": []}, {"name": "AppTheme.PopupOverlay", "parent": "ThemeOverlay.AppCompat.Light", "item": []}, {"name": "ratingBarStyle", "parent": "@android:style/Widget.RatingBar", "item": [{"name": "android:progressDrawable", "text": "@drawable/ratingbar_drawable"}, {"name": "android:minHeight", "text": "48dip"}, {"name": "android:maxHeight", "text": "48dip"}]}]'
+            json.marshal(v) == '[{"name": "AppTheme", "parent": "Theme.AppCompat.Light.DarkActionBar", "item": '
+            '[{"name": "colorPrimary", "text": "@color/colorPrimary"}, '
+            '{"name": "colorPrimaryDark", "text": "@color/colorPrimaryDark"}, '
+            '{"name": "colorAccent", "text": "@color/colorAccent"}]}, '
+            '{"name": "AppTheme.NoActionBar", "parent": null, "item": ['
+            '{"name": "windowActionBar", "text": "false"}, {"name": "windowNoTitle", "text": "true"}]}, '
+            '{"name": "AppTheme.AppBarOverlay", "parent": "ThemeOverlay.AppCompat.Dark.ActionBar", "item": []}, '
+            '{"name": "AppTheme.PopupOverlay", "parent": "ThemeOverlay.AppCompat.Light", "item": []}, '
+            '{"name": "ratingBarStyle", "parent": "@android:style/Widget.RatingBar", "item": '
+            '[{"name": "android:progressDrawable", "text": "@drawable/ratingbar_drawable"}, '
+            '{"name": "android:minHeight", "text": "48dip"}, '
+            '{"name": "android:maxHeight", "text": "48dip"}]}]'
         )
         assert (
             json.marshal(v, json.Options(True))
-            == '[{"name": "AppTheme", "parent": "Theme.AppCompat.Light.DarkActionBar", "item": [{"name": "colorPrimary", "text": "@color/colorPrimary"}, {"name": "colorPrimaryDark", "text": "@color/colorPrimaryDark"}, {"name": "colorAccent", "text": "@color/colorAccent"}]}, {"name": "AppTheme.NoActionBar", "item": [{"name": "windowActionBar", "text": "false"}, {"name": "windowNoTitle", "text": "true"}]}, {"name": "AppTheme.AppBarOverlay", "parent": "ThemeOverlay.AppCompat.Dark.ActionBar", "item": []}, {"name": "AppTheme.PopupOverlay", "parent": "ThemeOverlay.AppCompat.Light", "item": []}, {"name": "ratingBarStyle", "parent": "@android:style/Widget.RatingBar", "item": [{"name": "android:progressDrawable", "text": "@drawable/ratingbar_drawable"}, {"name": "android:minHeight", "text": "48dip"}, {"name": "android:maxHeight", "text": "48dip"}]}]'
+            == '[{"name": "AppTheme", "parent": "Theme.AppCompat.Light.DarkActionBar", "item": '
+            '[{"name": "colorPrimary", "text": "@color/colorPrimary"}, '
+            '{"name": "colorPrimaryDark", "text": "@color/colorPrimaryDark"}, '
+            '{"name": "colorAccent", "text": "@color/colorAccent"}]}, '
+            '{"name": "AppTheme.NoActionBar", "item": [{"name": "windowActionBar", "text": "false"}, '
+            '{"name": "windowNoTitle", "text": "true"}]}, '
+            '{"name": "AppTheme.AppBarOverlay", "parent": "ThemeOverlay.AppCompat.Dark.ActionBar", "item": []}, '
+            '{"name": "AppTheme.PopupOverlay", "parent": "ThemeOverlay.AppCompat.Light", "item": []}, '
+            '{"name": "ratingBarStyle", "parent": "@android:style/Widget.RatingBar", "item": '
+            '[{"name": "android:progressDrawable", "text": "@drawable/ratingbar_drawable"}, '
+            '{"name": "android:minHeight", "text": "48dip"}, {"name": "android:maxHeight", "text": "48dip"}]}]'
         )
 
     def test_declared_to_xml(self):
@@ -251,79 +281,11 @@ class XmlSerializeTestCase(unittest.TestCase):
             one_person.to_xml_bytes().decode(),
             '<person valid="true"><name>John</name><age>18</age></person>',
         )
-        self.assertEqual(
-            one_person.to_json(), '{"valid": "true", "name": "John", "age": 18}'
-        )
+        self.assertEqual(one_person.to_json(), '{"valid": "true", "name": "John", "age": 18}')
 
     def test_c2_xml(self):
-        xml_string = (
-            """
-        <ADI>
-            <Objects>
-                <Object Action="REGIST" Code="PIC10100000140047ylxy" ElementType="Picture" ID="PIC10100000140047ylxy">
-                    <Property Name="FileURL">heihei</Property>
-                    <Property Name="Description">无</Property>
-                </Object>
-                <Object Action="REGIST" Code="PRO10100000140047ylxy" ElementType="Program" ID="PRO10100000140047ylxy">
-                    <Property Name="Type">5</Property>
-                    <Property Name="Provide">未知</Property>
-                    <Property Name="Name">拯救计划</Property>
-                    <Property Name="SeriesName">娃娃爱冒险</Property>
-                    <Property Name="LicensingWindowStart">20190101201959</Property>
-                    <Property Name="LicensingWindowEnd">20991231202019</Property>
-                    <Property Name="AuthType">1</Property>
-                    <Property Name="AuthChannel">0</Property>
-                    <Property Name="SearchName">wwamx</Property>
-                    <Property Name="Genre">Genre</Property>
-                    <Property Name="WriterDisplay">未知</Property>
-                    <Property Name="WriterSearchName">wwamx</Property>
-                    <Property Name="OriginalCountry">中国</Property>
-                    <Property Name="Language">普通话</Property>
-                    <Property Name="ReleaseYear">2019</Property>
-                    <Property Name="OrgAirDate">20190101</Property>
-                    <Property Name="DisplayAsNew">0</Property>
-                    <Property Name="DisplayAsLastChance">999</Property>
-                    <Property Name="Macrovision">0</Property>
-                    <Property Name="Description">欢乐宝宝是一部以儿童形象为主题的动漫，主角是欢欢、乐乐、豆豆、团团、圆圆5个性格特征各异的可爱动画形象，以少年儿童在生活学习中遇到各种习惯、常识、科普知识等丰富资源作为创作题材。</Property>
-                    <Property Name="Status">1</Property>
-                    <Property Name="SourceType">1</Property>
-                    <Property Name="SeriesFlag">1</Property>
-                    <Property Name="SeriesItemNo">32</Property>
-                    <Property Name="Keywords">教育</Property>
-                    <Property Name="Tags">教育</Property>
-                    <Property Name="StorageType">1</Property>
-                    <Property Name="DefinitionFlag">1</Property>
-                    <Property Name="MobileLicense">1</Property>
-                </Object>
-                <Object Action="REGIST" Code="MOV10100000140047ylxy" ElementType="Movie" ID="MOV10100000140047ylxy">
-                    <Property Name="Type">1</Property>
-                    <Property Name="FileURL">ftp://hh:hh@192.168.1.99/picture/hui_ben_gong_she/wa_wa_ai_mao_xian_.ts</Property>
-                    <Property Name="SourceDRMType">0</Property>
-                    <Property Name="DestDRMType">0</Property>
-                    <Property Name="AudioType">1</Property>
-                    <Property Name="ClosedCaptioning">1</Property>
-                    <Property Name="VideoType">4</Property>
-                    <Property Name="AudioFormat">3</Property>
-                    <Property Name="Resolution">8</Property>
-                    <Property Name="VideoProfile">5</Property>
-                    <Property Name="SystemLayer">1</Property>
-                    <Property Name="ServiceType">0x01</Property>
-                </Object>
-            </Objects>
-            <Mappings>
-                <Mapping Action="REGIST" ElementCode="PRO10100000140047ylxy" ElementID="PRO10100000140047ylxy" ElementType="Program" ParentCode="PIC10100000140047ylxy" ParentID="PIC10100000140047ylxy" ParentType="Picture">
-                    <Property Name="Type">1</Property>
-                </Mapping>
-                <Mapping Action="REGIST" ElementCode="PRO10100000140047ylxy" ElementID="PRO10100000140047ylxy" ElementType="Program" ParentCode="SERwwamxylxy" ParentID="SERwwamxylxy" ParentType="Series">
-                    <Property Name="Sequence">32</Property>
-                </Mapping>
-                <Mapping Action="REGIST" ElementCode="MOV10100000140047ylxy" ElementID="MOV10100000140047ylxy" ElementType="Movie" ParentCode="PRO10100000140047ylxy" ParentID="PRO10100000140047ylxy" ParentType="Program" />
-            </Mappings>
-        </ADI>
-        """.strip()
-            .replace("\n", "")
-            .replace("\t", "")
-        )
+        with open("tests/c2.xml") as f:
+            xml_string = f.read().strip().replace("\n", "").replace("\t", "")
         pattern = re.compile(r">\s*<")
         xml_string = pattern.sub("><", xml_string)
 
@@ -373,9 +335,7 @@ class XmlSerializeTestCase(unittest.TestCase):
             mappings = pascalcase_var(Mappings)
 
         adi = ADI.from_xml_string(xml_string)
-        self.assertMultiLineEqual(
-            adi.to_xml_bytes(encoding="utf-8").decode("utf-8"), xml_string
-        )
+        self.assertMultiLineEqual(adi.to_xml_bytes(encoding="utf-8").decode("utf-8"), xml_string)
 
     def test_c2_xml_prettify(self):
         class VideoFormat(Declared):
@@ -416,9 +376,7 @@ class XmlSerializeTestCase(unittest.TestCase):
 </FileFormat>"""
 
         adi = FileFormat.from_xml_string(xml_string)
-        self.assertMultiLineEqual(
-            adi.to_xml_bytes(encoding="utf8", indent=" " * 4).decode("utf8"), xml_string
-        )
+        self.assertMultiLineEqual(adi.to_xml_bytes(encoding="utf8", indent=" " * 4).decode("utf8"), xml_string)
 
         xml_string = """<?xml version='1.0' encoding='utf8'?>
 <FileFormat>
@@ -439,9 +397,7 @@ class XmlSerializeTestCase(unittest.TestCase):
 
         adi = FileFormat.from_xml_string(xml_string)
         self.maxDiff = None
-        self.assertMultiLineEqual(
-            adi.to_xml_bytes(encoding="utf8", indent=" " * 6).decode("utf8"), xml_string
-        )
+        self.assertMultiLineEqual(adi.to_xml_bytes(encoding="utf8", indent=" " * 6).decode("utf8"), xml_string)
 
     def test_empty_node(self):
         xml_string = """
@@ -465,9 +421,7 @@ class XmlSerializeTestCase(unittest.TestCase):
             one_person.to_xml_bytes().decode(),
             '<person valid="true"><name>John</name><age>18</age></person>',
         )
-        self.assertEqual(
-            one_person.to_json(), '{"valid": "true", "name": "John", "age": 18}'
-        )
+        self.assertEqual(one_person.to_json(), '{"valid": "true", "name": "John", "age": 18}')
         self.assertEqual(
             one_person.to_xml_bytes(skip_none_field=True).decode(),
             '<person valid="true"><name>John</name><age>18</age></person>',

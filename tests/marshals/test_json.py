@@ -1,21 +1,19 @@
 from datetime import datetime
 from enum import Enum
-from pydeclares.exceptions import FieldRequiredError
-from pydeclares.marshals.exceptions import MarshalError
 from typing import Any, Optional, Type, TypeVar
 
 import pytest
 
 from pydeclares import Declared, var
+from pydeclares.exceptions import FieldRequiredError
 from pydeclares.marshals import json
+from pydeclares.marshals.exceptions import MarshalError
 from pydeclares.variables import kv, vec
 
 _T = TypeVar("_T", bound=Any)
 
 
-def unmarshal(
-    unmarshalable: Type[_T], str_: str, options: Optional[json.Options] = None
-) -> _T:
+def unmarshal(unmarshalable: Type[_T], str_: str, options: Optional[json.Options] = None) -> _T:
     if options:
         return json.unmarshal(unmarshalable, str_, json.Options())
     else:

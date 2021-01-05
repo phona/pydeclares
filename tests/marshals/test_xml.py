@@ -1,11 +1,12 @@
-from pydeclares.variables import vec
-import pytest
-from pydeclares.exceptions import FieldRequiredError
 from typing import Any, Optional, Type, TypeVar
-from pydeclares import Declared, var
-from pydeclares.marshals import xml
-from xmlformatter import Formatter
 from xml.etree import ElementTree as ET
+
+import pytest
+from xmlformatter import Formatter
+
+from pydeclares import Declared, var
+from pydeclares.exceptions import FieldRequiredError
+from pydeclares.marshals import xml
 
 _T = TypeVar("_T", bound=Any)
 _xml_formatter = Formatter()
@@ -15,9 +16,7 @@ def format_xml(s: str):
     return _xml_formatter.format_string(s).decode()
 
 
-def unmarshal(
-    unmarshalable: Type[_T], str_: str, options: Optional[xml.Options] = None
-) -> _T:
+def unmarshal(unmarshalable: Type[_T], str_: str, options: Optional[xml.Options] = None) -> _T:
     elem = ET.XML(str_)
     if options:
         return xml.unmarshal(unmarshalable, elem, options)
