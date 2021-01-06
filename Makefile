@@ -23,6 +23,7 @@ init: Pipfile.lock
 
 publish:
 	pipenv run python setup.py sdist bdist_wheel
+	pipenv run twine upload dist/*
 	@echo "clean dist..."
 	@rm -rf dist
 	@rm -rf build

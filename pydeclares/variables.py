@@ -19,9 +19,8 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Literal, Protocol, runtime_checkable
-
 from pydeclares import declares
+from pydeclares.typing import Literal, Protocol, runtime_checkable
 from pydeclares.utils import NamingStyle, isinstance_safe, issubclass_safe
 
 _T = TypeVar("_T", bound="Var[Any, Any]")

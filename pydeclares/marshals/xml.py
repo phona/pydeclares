@@ -2,11 +2,10 @@ from collections import UserList
 from typing import Any, Dict, List, Optional, Type, TypeVar, Union, overload
 from xml.etree import ElementTree as ET
 
-from typing_extensions import Protocol, runtime_checkable
-
 from pydeclares import declares, variables
 from pydeclares.defines import MISSING
 from pydeclares.marshals.exceptions import MarshalError
+from pydeclares.typing import Protocol, runtime_checkable
 from pydeclares.utils import isinstance_safe, issubclass_safe
 
 _Literal = Union[str, int, float, bool, None]

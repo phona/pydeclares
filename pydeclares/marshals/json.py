@@ -2,11 +2,10 @@ import json
 from collections import UserDict, UserList
 from typing import Any, Dict, List, Type, TypeVar, Union, overload
 
-from typing_extensions import Protocol, runtime_checkable
-
 from pydeclares import declares, variables
 from pydeclares.defines import MISSING, Json, JsonData
 from pydeclares.marshals.exceptions import MarshalError
+from pydeclares.typing import Protocol, runtime_checkable
 from pydeclares.utils import issubclass_safe
 
 _T = TypeVar("_T")
