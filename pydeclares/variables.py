@@ -84,7 +84,8 @@ class Var(Generic[_GT, _ST]):
         :param default_factory: a callable object that can return a Type[A] object, as same as default parameter
                                 but it is more flexible.
 
-        :param naming_style: a callable object, that can change naming style without redefined field name by `field_name` variable
+        :param naming_style: a callable object, that can change naming style without redefined field name by
+                            `field_name` variable
 
         :param as_xml_attr: a bool object, to declare one field as a xml attribute container
 
@@ -92,9 +93,10 @@ class Var(Generic[_GT, _ST]):
 
         :param ignore_serialize: a bool object, if it is True then will omit in serialize.
 
-        :param init: a bool object, the parameter determines whether this variable will be initialize by default initializer.
-                    if it is False, then do not initialize with default initializer for this variable, and you must set attribute
-                    in other place otherwise there are AttributeError raised in serializing.
+        :param init: a bool object, the parameter determines whether this variable will be initialize by default
+                     initializer. if it is False, then do not initialize with default initializer for this
+                     variable, and you must set attribute in other place otherwise there are AttributeError
+                     raised in serializing.
         """
         self.name = ""
         self._field_name = field_name
@@ -137,11 +139,6 @@ class Var(Generic[_GT, _ST]):
     def type_(self) -> Type[_GT]:
         raise NotImplementedError
 
-    @property
-    @abstractmethod
-    def construct(self) -> Callable[..., _GT]:
-        raise NotImplementedError
-
     @abstractmethod
     def cast_it(self, obj: _ST) -> _GT:
         raise NotImplementedError
@@ -176,10 +173,6 @@ class Int(Var[int, SupportsInt]):
     def type_(self):
         return int
 
-    @property
-    def construct(self):
-        return int
-
     def cast_it(self, obj: SupportsInt) -> int:
         return int(obj)
 
@@ -187,10 +180,6 @@ class Int(Var[int, SupportsInt]):
 class Float(Var[float, SupportsFloat]):
     @property
     def type_(self):
-        return float
-
-    @property
-    def construct(self):
         return float
 
     def cast_it(self, obj: SupportsFloat) -> float:
@@ -202,10 +191,6 @@ class Complex(Var[complex, SupportsComplex]):
     def type_(self):
         return complex
 
-    @property
-    def construct(self):
-        return complex
-
     def cast_it(self, obj: SupportsComplex) -> complex:
         return complex(obj)
 
@@ -213,10 +198,6 @@ class Complex(Var[complex, SupportsComplex]):
 class Bytes(Var[bytes, SupportsBytes]):
     @property
     def type_(self):
-        return bytes
-
-    @property
-    def construct(self):
         return bytes
 
     def cast_it(self, obj: SupportsBytes) -> bytes:
@@ -231,10 +212,6 @@ class SupportsStr(Protocol):
 class String(Var[str, SupportsStr]):
     @property
     def type_(self):
-        return str
-
-    @property
-    def construct(self):
         return str
 
     def cast_it(self, obj: SupportsStr) -> Text:
@@ -265,10 +242,6 @@ class var(Var[_GT, Union[Castable[_GT], _GT]]):
 
     @property
     def type_(self):
-        return self._type
-
-    @property
-    def construct(self):
         return self._type
 
     def cast_it(self, obj: Union[Castable[_GT], _GT]) -> _GT:
@@ -319,10 +292,6 @@ class kv(Var[Mapping[_K, _V], Castable[Mapping[_K, _V]]]):
     def type_(self) -> Type[Mapping[_K, _V]]:
         return Dict  # type: ignore
 
-    @property
-    def construct(self) -> Type[Dict[_K, _V]]:
-        return dict  # type: ignore
-
     def cast_it(self, obj: Castable[Mapping[_K, _V]]) -> Mapping[_K, _V]:
         try:
             return obj.cast()
@@ -360,10 +329,6 @@ class vec(Var[List[_GT], Castable[Iterable[_GT]]]):
     @property
     def type_(self) -> Type[List[_GT]]:
         return List  # type: ignore
-
-    @property
-    def construct(self) -> Type[List[_GT]]:
-        return list  # type: ignore
 
     def type_checking(self, obj: Any) -> bool:
         if not isinstance(obj, Iterable):
@@ -424,12 +389,8 @@ class _ObjectSerializer:
 _object_serializer = _ObjectSerializer()
 
 
-def compatible_var(
-    type_: Union[Type[Any], vec[Any]], *args: Any, **kwargs: Any
-) -> Var[Any, Any]:
-    if isinstance(type_, vec):
-        return type_
-    elif issubclass_safe(type_, List):
+def compatible_var(type_: Type[Any], *args: Any, **kwargs: Any) -> Var[Any, Any]:
+    if issubclass_safe(type_, List):
         kwargs.setdefault("serializer", _object_serializer)
         return vec(object, *args, **kwargs)
     elif issubclass_safe(type_, Dict):

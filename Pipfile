@@ -8,6 +8,9 @@ flake8 = "*"
 black = "*"
 pytest = "*"
 xmlformatter = "*"
+coverage = "*"
+isort = "*"
+twine = "*"
 
 [packages]
 typing-extensions = "*"

@@ -1,14 +1,14 @@
 import json
 from collections import UserDict, UserList
-from typing import Dict, List, Type, TypeVar, Union, overload
+from typing import Any, Dict, List, Type, TypeVar, Union, overload
+
+from typing_extensions import Protocol, runtime_checkable
 
 from pydeclares import declares, variables
 from pydeclares.defines import MISSING, Json, JsonData
 from pydeclares.marshals.exceptions import MarshalError
 from pydeclares.utils import issubclass_safe
-from typing_extensions import Protocol, runtime_checkable
 
-_Literal = Union[str, int, float, bool, None]
 _T = TypeVar("_T")
 _K = TypeVar("_K")
 _V = TypeVar("_V")
@@ -56,9 +56,7 @@ class KV(Dict[_K, _V], UserDict):
     def marshal(self, options: "Options"):
         return json.dumps(
             {
-                _marshal_field(self.kv.k_type, self.kv, k, options): _marshal_field(
-                    self.kv.v_type, self.kv, v, options
-                )
+                _marshal_field(self.kv.k_type, self.kv, k, options): _marshal_field(self.kv.v_type, self.kv, v, options)
                 for k, v in self.items()
             },
             **options.json_dumps,
@@ -126,72 +124,45 @@ def unmarshal(typ, buf: JsonData, options: Options = _default_options):
 
 
 def _unmarshal(marshalable, data: Json, options: Options):
-    # type: (Union[variables.vec, variables.kv, Json, Type[declares.Declared]], Json, Options) -> Union[List, Dict, Json, declares.Declared, None]
-    if data is None:
-        return None
+    # type: (Type[declares.Declared], Json, Options) -> declares.Declared
+    assert isinstance(data, Dict)
+    if not data:
+        return marshalable()
 
-    if isinstance(marshalable, variables.vec):
-        assert isinstance(data, List)
-        return [
-            _unmarshal_field(marshalable.item_type, marshalable, i, options)
-            for i in data
-        ]
-    elif isinstance(marshalable, variables.kv):
-        assert isinstance(data, Dict)
-        return {
-            _unmarshal_field(
-                marshalable.k_type, marshalable, k, options
-            ): _unmarshal_field(marshalable.v_type, marshalable, v, options)
-            for k, v in data.items()
-        }
-    elif isinstance(marshalable, Json.__args__):  # type: ignore
-        return data
-    elif issubclass(marshalable, declares.Declared):  # type: ignore
-        assert isinstance(data, Dict)
-        if not data:
-            return marshalable()
+    init_kwargs = {}
+    for field in declares.fields(marshalable):
+        field_value = data.get(field.field_name, MISSING)
+        if field_value is MISSING:
+            field_value = field.make_default()
 
-        init_kwargs = {}
-        for field in declares.fields(marshalable):
-            field_value = data.get(field.field_name, MISSING)
-            if field_value is MISSING:
-                field_value = field.make_default()
+        if not field.type_checking(field_value):
+            field_value = _unmarshal_field(field.type_, field, field_value, options)
 
-            if not field.type_checking(field_value):
-                field_value = _unmarshal_field(field.type_, field, field_value, options)
+        init_kwargs[field.name] = field_value
 
-            init_kwargs[field.name] = field_value
-
-        return marshalable(**init_kwargs)
-
-    raise MarshalError(f"type {marshalable} is not unmarshalable")
+    return marshalable(**init_kwargs)
 
 
 def _unmarshal_field(typ, field, value, options: Options):
+    # type: (type, Union[variables.Var, variables.vec, variables.kv], Any, Options) -> Any
     if value is None:
         return None
-    elif issubclass(typ, _Literal.__args__):  # type: ignore
-        return value
     elif issubclass(typ, declares.Declared):
         return _unmarshal(typ, value, options)
     elif issubclass(typ, List):
-        assert isinstance(value, List)
+        assert isinstance(value, List) and isinstance(field, variables.vec)
         return [_unmarshal_field(field.item_type, field, i, options) for i in value]
     elif issubclass(typ, Dict):
-        assert isinstance(value, Dict)
+        assert isinstance(value, Dict) and isinstance(field, variables.kv)
         return {
-            _unmarshal_field(field.k_type, field, k, options): _unmarshal_field(
-                field.v_type, field, v, options
-            )
+            _unmarshal_field(field.k_type, field, k, options): _unmarshal_field(field.v_type, field, v, options)
             for k, v in value.items()
         }
 
-    if not field.serializer:
-        raise MarshalError(
-            f"can't unmarshal `{type(value)!r}` to property `{field.name}` which are `{typ!r}`"
-        )
+    if field.serializer:
+        value = field.serializer.to_internal_value(value)
 
-    return field.serializer.to_internal_value(value)
+    return value
 
 
 def marshal(
@@ -205,17 +176,13 @@ def marshal(
         return unmarshalable_or_declared.marshal(options)
 
 
-def _marshal_declared(
-    declared: "declares.Declared", options: Options
-) -> Dict[str, Json]:
+def _marshal_declared(declared: "declares.Declared", options: Options) -> Dict[str, Json]:
     kv = {}
     for field in declares.fields(declared):
         if field.ignore_serialize:
             continue
 
-        value = _marshal_field(
-            field.type_, field, getattr(declared, field.name), options
-        )
+        value = _marshal_field(field.type_, field, getattr(declared, field.name), options)
         if value is None and options.skip_none_field:
             continue
 
@@ -232,15 +199,14 @@ def _marshal_field(typ, field, value, options):
         return [_marshal_field(field.item_type, field, v, options) for v in value]
     elif issubclass_safe(typ, Dict):
         return {
-            _marshal_field(field.k_type, field, k, options): _marshal_field(
-                field.v_type, field, v, options
-            )
+            _marshal_field(field.k_type, field, k, options): _marshal_field(field.v_type, field, v, options)
             for k, v in value.items()
         }
-    elif issubclass_safe(typ, _Literal.__args__):  # type: ignore
-        return value
 
-    if not field.serializer:
+    if field.serializer:
+        value = field.serializer.to_representation(value)
+
+    if not isinstance(value, Json.__args__):  # type: ignore
         raise MarshalError(f"can't marshal property `{field.name}` which are `{typ!r}`")
 
-    return field.serializer.to_representation(value)
+    return value

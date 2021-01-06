@@ -1,23 +1,10 @@
 import urllib.parse as urlparse
 from json.decoder import JSONDecoder
 from json.encoder import JSONEncoder
-from typing import (
-    Any,
-    Callable,
-    ClassVar,
-    Dict,
-    List,
-    Optional,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-    overload,
-)
+from typing import Any, Callable, ClassVar, Dict, List, Optional, Tuple, Type, TypeVar, Union, overload
 from xml.etree import ElementTree as ET
 
-from pydeclares import variables
-from pydeclares import variables as vars
+from pydeclares import variables, variables as vars
 from pydeclares.defines import MISSING, JsonData
 from pydeclares.exceptions import FieldRequiredError
 from pydeclares.marshals import json, xml
@@ -43,13 +30,6 @@ class BaseDeclared(type):
                 base_meta_vars = meta.get("vars", {})
                 meta_vars.update(base_meta_vars)
                 fields.extend(base_meta_vars.keys())
-
-            for k, v in base.__dict__.items():
-                if isinstance_safe(v, Var):
-                    fields.append(k)
-                    var = v
-                    var.name = k
-                    meta_vars[k] = var
 
         for key in list(namespace.keys()):
             if isinstance(namespace[key], Var):
@@ -310,10 +290,7 @@ class Declared(metaclass=BaseDeclared):
         return not self._is_empty
 
     def __str__(self):
-        args = [
-            f"{field_name}={str(getattr(self, field_name, 'missing'))}"
-            for field_name in self.fields
-        ]
+        args = [f"{field_name}={str(getattr(self, field_name, 'missing'))}" for field_name in self.fields]
         return f"{self.__class__.__name__}({', '.join(args)})"
 
     def __eq__(self, other: "Declared"):
@@ -348,7 +325,6 @@ def fields(class_or_instance: Union[Type[_DT], _DT]) -> Tuple[Var[Any, Any]]:
     # order, so the order of the tuple is as the fields were defined.
     out = []
     for f in fields:
-        var = meta_vars.get(f, None)
-        if var:
-            out.append(var)
+        var = meta_vars[f]
+        out.append(var)
     return tuple(out)
