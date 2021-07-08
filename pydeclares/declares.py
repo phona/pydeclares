@@ -1,7 +1,20 @@
 import urllib.parse as urlparse
 from json.decoder import JSONDecoder
 from json.encoder import JSONEncoder
-from typing import Any, Callable, ClassVar, Dict, List, Optional, Tuple, Type, TypeVar, Union, overload
+from typing import (
+    Any,
+    Callable,
+    ClassVar,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    overload,
+)
 from xml.etree import ElementTree as ET
 
 from pydeclares import variables, variables as vars
@@ -130,6 +143,24 @@ class Declared(metaclass=BaseDeclared):
                 field_value = kvs[field.field_name]
                 if issubclass(field.type_, Declared):
                     field_value = field.type_.from_dict(field_value)
+                elif (
+                    issubclass(field.type_, List)
+                    and isinstance(field, variables.vec)
+                    and issubclass(field.item_type, Declared)
+                ):
+                    assert isinstance(
+                        field_value, Iterable
+                    ), f"field `{field.name}` cannot receive not iterable type"
+                    field_value = [field.item_type.from_dict(v) for v in field_value]
+                elif (
+                    issubclass(field.type_, Dict)
+                    and isinstance(field, variables.kv)
+                    and issubclass(field.v_type, Declared)
+                ):
+                    assert isinstance(
+                        field_value, Iterable
+                    ), f"field `{field.name}` cannot receive not iterable type"
+                    field_value = {k: field.v_type.from_dict(v) for k, v in field_value.items()}
             except KeyError:
                 default = field.make_default()
                 if default is None:
@@ -290,7 +321,10 @@ class Declared(metaclass=BaseDeclared):
         return not self._is_empty
 
     def __str__(self):
-        args = [f"{field_name}={str(getattr(self, field_name, 'missing'))}" for field_name in self.fields]
+        args = [
+            f"{field_name}={str(getattr(self, field_name, 'missing'))}"
+            for field_name in self.fields
+        ]
         return f"{self.__class__.__name__}({', '.join(args)})"
 
     def __eq__(self, other: "Declared"):

@@ -18,7 +18,6 @@ def isinstance_safe(o: Any, t: type):
         return result
 
 
-@overload
 def issubclass_safe(cls: type, _class_or_tuple: Union[type, Tuple[Union[type, Tuple[Any, ...]], ...]]) -> bool:
     ...
 

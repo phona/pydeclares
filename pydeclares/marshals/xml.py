@@ -167,7 +167,9 @@ def _marshal_text_field(field, value):
 def _marshal_field(field, value, options):
     # type: (variables.Var, declares.Declared, Options) -> ET.Element
     if isinstance(value, declares.Declared):
-        return _marshal_declared(value, options)
+        elem = _marshal_declared(value, options)
+        elem.tag = field.field_name
+        return elem
     else:
         text = _marshal_text_field(field, value)
         elem = ET.Element(field.field_name)

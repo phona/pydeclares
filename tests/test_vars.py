@@ -1,3 +1,4 @@
+from pydeclares.variables import vec
 import unittest
 from typing import Any
 
@@ -272,3 +273,25 @@ class ComplexVarTestCase(unittest.TestCase):
         self.assertEqual(i3.a, None)
         self.assertEqual(i3.to_json(), "{}")
         self.assertEqual(i3.to_json(skip_none_field=True), "{}")
+
+
+def test_field_name():
+    class Table(Declared):
+        hello_world = var(str, field_name="helloWorld")
+
+    class Body(Declared):
+        field0 = var(Table, field_name="fieldA")
+
+    t = Table(hello_world="123")
+    body = Body(t)
+    assert body.to_xml_bytes() == b'<body><fieldA><helloWorld>123</helloWorld></fieldA></body>'
+
+
+def test_vec():
+    class Item(Declared):
+        a = var(str)
+
+    class Table(Declared):
+        items = vec(Item)
+
+    Table.from_dict({"items": [{"a": "a"}]})

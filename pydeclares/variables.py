@@ -1,4 +1,6 @@
 from abc import abstractmethod
+from enum import Enum
+from functools import lru_cache
 from typing import (
     Any,
     Callable,
@@ -385,6 +387,21 @@ class _ObjectSerializer:
         return o
 
 
+_Enum = TypeVar("_Enum", bound=Enum)
+
+
+@lru_cache()
+class _EnumSerializer(Generic[_Enum]):
+    def __init__(self, EnumClass: Type[_Enum]):
+        self.EnumClass = EnumClass
+
+    def to_representation(self, o: _Enum) -> Any:
+        return o.value
+
+    def to_internal_value(self, o: Any) -> _Enum:
+        return self.EnumClass(o)
+
+
 _object_serializer = _ObjectSerializer()
 
 
@@ -405,5 +422,7 @@ def compatible_var(type_: Type[Any], *args: Any, **kwargs: Any) -> Var[Any, Any]
         return Complex(*args, **kwargs)
     elif type_ is bytes:
         return Bytes(*args, **kwargs)
+    elif issubclass_safe(type_, Enum):
+        kwargs.setdefault("serializer", _EnumSerializer(type_))
 
     return var(type_, *args, **kwargs)

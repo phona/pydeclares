@@ -215,6 +215,57 @@ def test_marshal_enum():
     assert json.marshal(out, json.Options()) == _str
 
 
+def test_marshal_enum_v1():
+    class Fruit(Enum):
+        Apple = 0
+        Banana = 1
+
+    class Struct(Declared):
+        p0 = var(Fruit)
+
+    _str = '{"p0": 0}'
+    out = json.unmarshal(Struct, _str, json.Options())
+    assert out == Struct(p0=Fruit.Apple)
+    assert json.marshal(out, json.Options()) == _str
+
+
+def test_marshal_enum_v2():
+    class Fruit(Enum):
+        Apple = 0
+        Banana = 1
+
+    class FruitSerializer:
+        def to_representation(self, fruit: Fruit) -> int:
+            return fruit.value + 1
+
+        def to_internal_value(self, val: int) -> Fruit:
+            return Fruit(val - 1)
+
+    class Struct(Declared):
+        p0 = var(Fruit, serializer=FruitSerializer())
+
+    _str = '{"p0": 1}'
+    out = json.unmarshal(Struct, _str, json.Options())
+    assert out == Struct(p0=Fruit.Apple)
+    assert json.marshal(out, json.Options()) == _str
+
+
+def test_marshal_enum_v3():
+    class Fruit(Enum):
+        Apple = 0
+        Banana = 1
+
+    class Struct(Declared):
+        p0 = var(Fruit)
+        p1 = var(Fruit)
+
+    assert Struct.meta["vars"]["p0"].serializer is Struct.meta["vars"]["p1"].serializer  # type: ignore
+    _str = '{"p0": 0, "p1": 0}'
+    out = json.unmarshal(Struct, _str, json.Options())
+    assert out == Struct(p0=Fruit.Apple, p1=Fruit.Apple)
+    assert json.marshal(out, json.Options()) == _str
+
+
 def test_marshal_kv_compositions():
     class Struct(Declared):
         p0 = kv(str, int, required=False)
@@ -273,3 +324,11 @@ def test_umarshal_not_json_value():
     out = Struct(datetime.now())
     with pytest.raises(MarshalError):
         marshal(out)
+
+
+def test_default_value():
+    class Struct(Declared):
+        p0 = var(str, default="")
+
+    out = unmarshal(Struct, '{}')
+    assert out.p0 == ""
